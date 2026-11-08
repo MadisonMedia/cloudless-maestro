@@ -1,0 +1,23 @@
+{
+  "entity": {
+    "sensor": {
+      "time_of_day": { "default": "mdi:timeline-clock-outline" },
+      "model": { "default": "mdi:calendar-today" },
+      "next_change": { "default": "mdi:clock-end" },
+      "progress": { "default": "mdi:progress-clock" }
+    },
+    "select": {
+      "choose": { "default": "mdi:gesture-tap" }
+    },
+    "binary_sensor": {
+      "overridden": { "default": "mdi:pin-off-outline", "state": { "on": "mdi:pin" } }
+    }
+  },
+  "services": {
+    "pin": { "service": "mdi:pin" },
+    "resume": { "service": "mdi:calendar-sync" },
+    "adjust_day": { "service": "mdi:calendar-edit" },
+    "clear_day": { "service": "mdi:calendar-remove" },
+    "refresh_calendars": { "service": "mdi:calendar-refresh" }
+  }
+}

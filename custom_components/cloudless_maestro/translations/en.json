@@ -1,0 +1,94 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "New rhythm",
+        "description": "A rhythm is one daily schedule, for example for the flat, a terrarium or a child's room. Times of day, day models and the week plan are set up on the **Maestro** page in the sidebar.",
+        "data": { "name": "Name", "template": "Start with" }
+      }
+    }
+  },
+  "selector": {
+    "template": {
+      "options": {
+        "day": "A typical day: wake up, morning, midday, afternoon, evening, bedtime",
+        "empty": "One time of day, to build your own"
+      }
+    },
+    "until": {
+      "options": {
+        "next_change": "Until the next change",
+        "duration": "For a duration",
+        "time": "Until a time",
+        "next_day": "Until the next day",
+        "reset": "Until reset"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "time_of_day": { "name": "Time of day" },
+      "model": { "name": "Day model" },
+      "next_change": { "name": "Next change" },
+      "progress": { "name": "Progress" }
+    },
+    "select": {
+      "choose": { "name": "Choose time of day" }
+    },
+    "binary_sensor": {
+      "overridden": { "name": "Overridden" }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "begins": "A time of day begins",
+      "ends": "A time of day ends",
+      "changes": "The time of day changes"
+    },
+    "condition_type": {
+      "is": "The time of day is one of",
+      "is_overridden": "The plan is overridden"
+    },
+    "extra_fields": {
+      "time_of_day": "Time of day",
+      "times_of_day": "Times of day"
+    }
+  },
+  "services": {
+    "pin": {
+      "name": "Pin a time of day",
+      "description": "Sets a time of day of today's model, or the base state, until a chosen end. Pinning the current time of day holds it. A new pin replaces the previous one.",
+      "fields": {
+        "time_of_day": { "name": "Time of day", "description": "The key of the time of day, for example einschlafen. The Maestro page shows every key." },
+        "until": { "name": "End", "description": "Until the next change: until the plan begins a later time of day or the day ends. A duration or a time ends when the next day begins at the latest." },
+        "duration": { "name": "Duration", "description": "For the end “For a duration”." },
+        "time": { "name": "Time", "description": "For the end “Until a time”." }
+      }
+    },
+    "resume": {
+      "name": "Back to the plan",
+      "description": "Ends a pin. Day adjustments stay."
+    },
+    "adjust_day": {
+      "name": "Adjust a day",
+      "description": "Changes a single date: another day model, other start times, another day end. Only what you name changes, the rest follows the model.",
+      "fields": {
+        "date": { "name": "Date", "description": "Without a date, today. Before a day begins, today is the coming day." },
+        "model": { "name": "Day model", "description": "The key of another day model for this date." },
+        "times": { "name": "Start times", "description": "Times of day with new start times, for example einschlafen: 23:30. Add +1 for the following day, for example 01:00+1." },
+        "end": { "name": "Day end", "description": "A new day end, for example 00:30+1." }
+      }
+    },
+    "clear_day": {
+      "name": "Remove a day adjustment",
+      "description": "The date follows the plan again.",
+      "fields": {
+        "date": { "name": "Date", "description": "Without a date, today." }
+      }
+    },
+    "refresh_calendars": {
+      "name": "Read calendars again",
+      "description": "Reads the linked calendars at once instead of at the next regular update."
+    }
+  }
+}

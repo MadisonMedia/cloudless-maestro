@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Maestro frontend harness</title>
+<style>[hidden]{display:none!important} body{margin:0;background:#eef1f5;font:15px system-ui} .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;padding:14px;align-items:start} #panel{display:block}
+ha-card{display:block;background:var(--card-background-color,#fff);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+body.dark{background:#111418;--primary-background-color:#111418;--card-background-color:#1c2026;--secondary-background-color:#262b33;--primary-text-color:#e6e9ef;--secondary-text-color:#a2aab8;--divider-color:#39404b;--primary-color:#5b8def;--text-primary-color:#0c1018}</style></head>
+<body>
+<div class="cards" id="cards"></div>
+<maestro-panel id="panel" hidden></maestro-panel>
+<script type="module">
+// Runs the real card and page with an in-memory Home Assistant and data produced by the real backend
+// (tests/test_harness_data.py), for checks without a server.
+const q = new URLSearchParams(location.search);
+if (q.has("dark")) document.body.classList.add("dark");
+const LANG = q.get("lang") || "de";
+const data = await (await fetch(`./${q.get("data") || "harness-data.json"}`)).json();
+// Stand-ins for Home Assistant's own elements.
+customElements.define("ha-card", class extends HTMLElement {
+  connectedCallback() {
+    Object.assign(this.style, { background: "var(--card-background-color, #fff)", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,.14)" });
+  }
+});
+// Icons show as circles, or as real paths when the page gets them in window.__icons.
+customElements.define("ha-icon", class extends HTMLElement {
+  static observedAttributes = ["icon"];
+  connectedCallback() {
+    this.attributeChangedCallback();
+  }
+  attributeChangedCallback() {
+    const path = window.__icons?.[this.getAttribute("icon")];
+    Object.assign(this.style, { display: "inline-block", width: "var(--mdc-icon-size, 20px)", height: "var(--mdc-icon-size, 20px)", flex: "none" });
+    if (path) {
+      Object.assign(this.style, { border: "0", borderRadius: "0", opacity: "1" });
+      this.innerHTML = `<svg viewBox="0 0 24 24" width="100%" height="100%" style="display:block"><path fill="currentColor" d="${path}"/></svg>`;
+    } else {
+      Object.assign(this.style, { border: "2px solid currentColor", borderRadius: "50%", boxSizing: "border-box", opacity: ".8" });
+      this.innerHTML = "";
+    }
+  }
+});
+const calls = [];
+window.__calls = calls;
+let snapshot = q.has("pinned") ? data.pinned : data.snapshot;
+const listeners = new Set();
+const hass = {
+  language: LANG,
+  locale: { language: LANG },
+  themes: { darkMode: q.has("dark") },
+  config: { time_zone: "Europe/Berlin", latitude: 52.52, longitude: 13.405 },
+  states: {
+    "sensor.wohnung_tageszeit": { entity_id: "sensor.wohnung_tageszeit", state: snapshot.state.key, attributes: { rhythm: snapshot.entry_id, friendly_name: "Wohnung Tageszeit" } },
+    "calendar.feiertage": { entity_id: "calendar.feiertage", state: "off", attributes: { friendly_name: "Feiertage" } },
+  },
+  connection: {
+    subscribeMessage: async (cb, msg) => {
+      calls.push(msg);
+      listeners.add(cb);
+      setTimeout(() => cb(snapshot), 0);
+      return () => listeners.delete(cb);
+    },
+  },
+  callWS: async (m) => {
+    calls.push(m);
+    switch (m.type) {
+      case "cloudless_maestro/rhythms": return data.rhythms;
+      case "cloudless_maestro/templates": return data.templates;
+      case "cloudless_maestro/preview": return m.dates.length === 1 ? [data.preview[0]] : data.preview;
+      case "cloudless_maestro/month": return data.month;
+      case "cloudless_maestro/diagnostics": return data.diagnostics;
+      case "cloudless_maestro/rhythm/save": return { options: m.options };
+      case "cloudless_maestro/pin":
+        snapshot = data.pinned;
+        listeners.forEach((cb) => cb(snapshot));
+        return null;
+      case "cloudless_maestro/resume":
+        snapshot = data.snapshot;
+        listeners.forEach((cb) => cb(snapshot));
+        return null;
+      default: return null;
+    }
+  },
+};
+window.__hass = hass;
+const view = q.get("view") || "cards";
+if (view === "panel") {
+  await import("../../custom_components/cloudless_maestro/frontend/maestro-panel.js");
+  const panel = document.getElementById("panel");
+  panel.hidden = false;
+  panel.hass = hass;
+  panel.narrow = q.has("narrow");
+  if (q.get("tab")) {
+    await new Promise((r) => setTimeout(r, 200));
+    panel.shadowRoot.querySelector(`[data-act="tab"][data-v="${q.get("tab")}"]`)?.click();
+  }
+} else {
+  await import("../../custom_components/cloudless_maestro/frontend/maestro-card.js");
+  const configs = [
+    { entity: "sensor.wohnung_tageszeit", variant: "full", tomorrow: true },
+    { entity: "sensor.wohnung_tageszeit", variant: "compact" },
+  ];
+  for (const cfg of configs) {
+    const card = document.createElement("maestro-card");
+    card.setConfig(cfg);
+    document.getElementById("cards").append(card);
+    card.hass = hass;
+  }
+  if (q.get("sheet")) {
+    await new Promise((r) => setTimeout(r, 200));
+    const card = document.querySelector("maestro-card");
+    if (q.get("sheet") === "shift") card.shadowRoot.querySelector('[data-act="tick"]')?.click();
+    else card.shadowRoot.querySelector(`[data-act="open"][data-sheet="${q.get("sheet")}"]`)?.click();
+    if (q.get("end")) {
+      await new Promise((r) => setTimeout(r, 50));
+      const radio = card.shadowRoot.querySelector(`input[name="end"][value="${q.get("end")}"]`);
+      radio.checked = true;
+      radio.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+}
+window.__ready = true;
+</script>
+</body>
+</html>

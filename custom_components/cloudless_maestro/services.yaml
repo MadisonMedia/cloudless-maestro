@@ -1,0 +1,81 @@
+pin:
+  target:
+    device:
+      integration: cloudless_maestro
+    entity:
+      integration: cloudless_maestro
+  fields:
+    time_of_day:
+      required: true
+      example: einschlafen
+      selector:
+        text:
+    until:
+      default: next_change
+      selector:
+        select:
+          translation_key: until
+          options:
+            - next_change
+            - duration
+            - time
+            - next_day
+            - reset
+    duration:
+      example:
+        hours: 2
+      selector:
+        duration:
+    time:
+      example: "01:00:00"
+      selector:
+        time:
+
+resume:
+  target:
+    device:
+      integration: cloudless_maestro
+    entity:
+      integration: cloudless_maestro
+
+adjust_day:
+  target:
+    device:
+      integration: cloudless_maestro
+    entity:
+      integration: cloudless_maestro
+  fields:
+    date:
+      selector:
+        date:
+    model:
+      example: wochenende
+      selector:
+        text:
+    times:
+      example:
+        einschlafen: "23:30"
+      selector:
+        object:
+    end:
+      example: "00:30+1"
+      selector:
+        text:
+
+clear_day:
+  target:
+    device:
+      integration: cloudless_maestro
+    entity:
+      integration: cloudless_maestro
+  fields:
+    date:
+      selector:
+        date:
+
+refresh_calendars:
+  target:
+    device:
+      integration: cloudless_maestro
+    entity:
+      integration: cloudless_maestro

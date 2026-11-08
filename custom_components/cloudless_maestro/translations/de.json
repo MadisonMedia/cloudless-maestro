@@ -1,0 +1,94 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Neuer Rhythmus",
+        "description": "Ein Rhythmus ist ein eigener Tagesplan, zum Beispiel für die Wohnung, ein Terrarium oder ein Kinderzimmer. Tageszeiten, Tagesmodelle und den Wochenplan stellst du auf der Seite **Maestro** in der Seitenleiste ein.",
+        "data": { "name": "Name", "template": "Beginnen mit" }
+      }
+    }
+  },
+  "selector": {
+    "template": {
+      "options": {
+        "day": "Ein typischer Tag: Aufstehen, Morgen, Mittag, Nachmittag, Abend, Einschlafen",
+        "empty": "Eine Tageszeit, zum Selbstaufbauen"
+      }
+    },
+    "until": {
+      "options": {
+        "next_change": "Bis zum nächsten Wechsel",
+        "duration": "Für eine Dauer",
+        "time": "Bis Uhrzeit",
+        "next_day": "Bis zum nächsten Tag",
+        "reset": "Bis zurückgesetzt"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "time_of_day": { "name": "Tageszeit" },
+      "model": { "name": "Tagesmodell" },
+      "next_change": { "name": "Nächster Wechsel" },
+      "progress": { "name": "Fortschritt" }
+    },
+    "select": {
+      "choose": { "name": "Tageszeit wählen" }
+    },
+    "binary_sensor": {
+      "overridden": { "name": "Übersteuert" }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "begins": "Eine Tageszeit beginnt",
+      "ends": "Eine Tageszeit endet",
+      "changes": "Die Tageszeit wechselt"
+    },
+    "condition_type": {
+      "is": "Die Tageszeit ist eine von",
+      "is_overridden": "Der Plan ist übersteuert"
+    },
+    "extra_fields": {
+      "time_of_day": "Tageszeit",
+      "times_of_day": "Tageszeiten"
+    }
+  },
+  "services": {
+    "pin": {
+      "name": "Tageszeit festsetzen",
+      "description": "Setzt eine Tageszeit des heutigen Modells oder den Grundzustand bis zu einem gewählten Ende. Die aktuelle Tageszeit festzusetzen heißt halten. Eine neue Festsetzung ersetzt die vorige.",
+      "fields": {
+        "time_of_day": { "name": "Tageszeit", "description": "Der Schlüssel der Tageszeit, zum Beispiel einschlafen. Die Seite Maestro zeigt jeden Schlüssel." },
+        "until": { "name": "Ende", "description": "Bis zum nächsten Wechsel: bis der Plan eine spätere Tageszeit beginnt oder der Tag endet. Eine Dauer oder Uhrzeit endet spätestens, wenn der nächste Tag beginnt." },
+        "duration": { "name": "Dauer", "description": "Für das Ende „Für eine Dauer“." },
+        "time": { "name": "Uhrzeit", "description": "Für das Ende „Bis Uhrzeit“." }
+      }
+    },
+    "resume": {
+      "name": "Zurück zum Plan",
+      "description": "Beendet eine Festsetzung. Tagesanpassungen bleiben."
+    },
+    "adjust_day": {
+      "name": "Tag anpassen",
+      "description": "Ändert ein einzelnes Datum: ein anderes Tagesmodell, andere Startzeiten, ein anderes Tagesende. Nur was du nennst, ändert sich, der Rest folgt dem Modell.",
+      "fields": {
+        "date": { "name": "Datum", "description": "Ohne Datum heute. Bevor ein Tag beginnt, ist heute der kommende Tag." },
+        "model": { "name": "Tagesmodell", "description": "Der Schlüssel eines anderen Tagesmodells für dieses Datum." },
+        "times": { "name": "Startzeiten", "description": "Tageszeiten mit neuer Startzeit, zum Beispiel einschlafen: 23:30. Mit +1 am Folgetag, zum Beispiel 01:00+1." },
+        "end": { "name": "Tagesende", "description": "Ein neues Tagesende, zum Beispiel 00:30+1." }
+      }
+    },
+    "clear_day": {
+      "name": "Tagesanpassung entfernen",
+      "description": "Das Datum folgt wieder dem Plan.",
+      "fields": {
+        "date": { "name": "Datum", "description": "Ohne Datum heute." }
+      }
+    },
+    "refresh_calendars": {
+      "name": "Kalender neu lesen",
+      "description": "Liest die verknüpften Kalender sofort statt bei der nächsten regulären Aktualisierung."
+    }
+  }
+}

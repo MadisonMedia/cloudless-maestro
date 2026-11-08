@@ -1,0 +1,24 @@
+{
+  "domain": "cloudless_maestro",
+  "name": "Cloudless Maestro",
+  "after_dependencies": [
+    "calendar",
+    "lovelace"
+  ],
+  "codeowners": [
+    "@MadisonMedia"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "frontend",
+    "http",
+    "panel_custom",
+    "websocket_api"
+  ],
+  "documentation": "https://github.com/MadisonMedia/cloudless-maestro",
+  "integration_type": "helper",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/MadisonMedia/cloudless-maestro/issues",
+  "requirements": [],
+  "version": "0.1.0b1"
+}

@@ -1,0 +1,1174 @@
+{
+ "snapshot": {
+  "entry_id": "01M6Y58QW959S3941MV1ZW6PVK",
+  "title": "Wohnung",
+  "device_id": "487078badbb02d4327d2ef81f8f0b14e",
+  "now": "2026-11-09T19:10:00+01:00",
+  "base": {
+   "key": "nacht",
+   "name": "Nacht",
+   "color": "#2e3a6b",
+   "transition": 60,
+   "icon": "mdi:weather-night"
+  },
+  "times_of_day": [
+   {
+    "key": "aufstehen",
+    "name": "Aufstehen",
+    "icon": "mdi:weather-sunset-up",
+    "color": "#f2a65a",
+    "transition": 60
+   },
+   {
+    "key": "morgen",
+    "name": "Morgen",
+    "icon": "mdi:coffee-outline",
+    "color": "#f2c94c",
+    "transition": 60
+   },
+   {
+    "key": "mittag",
+    "name": "Mittag",
+    "color": "#7cc6e8",
+    "transition": 60,
+    "icon": "mdi:white-balance-sunny"
+   },
+   {
+    "key": "abend",
+    "name": "Abend",
+    "color": "#c46bae",
+    "transition": 60,
+    "icon": "mdi:weather-sunset-down"
+   },
+   {
+    "key": "einschlafen",
+    "name": "Einschlafen",
+    "color": "#6c63b5",
+    "transition": 60,
+    "icon": "mdi:bed-outline"
+   }
+  ],
+  "models": [
+   {
+    "key": "werktag",
+    "name": "Werktag"
+   },
+   {
+    "key": "wochenende",
+    "name": "Wochenende"
+   }
+  ],
+  "state": {
+   "key": "abend",
+   "since": "2026-11-09T18:30:00+01:00",
+   "until": "2026-11-09T23:00:00+01:00",
+   "next_key": "einschlafen",
+   "today": "2026-11-09",
+   "pinned": false,
+   "pin_end": null,
+   "planned": "abend",
+   "pin": null
+  },
+  "choosable": [
+   "aufstehen",
+   "morgen",
+   "mittag",
+   "abend",
+   "einschlafen",
+   "nacht"
+  ],
+  "next_day_start": "2026-11-10T06:30:00+01:00",
+  "days": [
+   {
+    "day": "2026-11-09",
+    "model": "werktag",
+    "source": "week",
+    "detail": null,
+    "adjusted": true,
+    "adjustment": {
+     "model": null,
+     "times": {
+      "einschlafen": {
+       "kind": "fixed",
+       "time": "23:00",
+       "next_day": false
+      }
+     },
+     "end": null
+    },
+    "order": [
+     "aufstehen",
+     "morgen",
+     "mittag",
+     "abend",
+     "einschlafen"
+    ],
+    "entries": [
+     {
+      "key": "aufstehen",
+      "start": "2026-11-09T06:30:00+01:00"
+     },
+     {
+      "key": "morgen",
+      "start": "2026-11-09T07:00:00+01:00"
+     },
+     {
+      "key": "mittag",
+      "start": "2026-11-09T12:00:00+01:00"
+     },
+     {
+      "key": "abend",
+      "start": "2026-11-09T18:30:00+01:00"
+     },
+     {
+      "key": "einschlafen",
+      "start": "2026-11-09T23:00:00+01:00"
+     }
+    ],
+    "end": "2026-11-09T23:30:00+01:00",
+    "dropped": [],
+    "window": {
+     "start": "2026-11-09T06:30:00+01:00",
+     "end": "2026-11-09T23:30:00+01:00"
+    }
+   },
+   {
+    "day": "2026-11-10",
+    "model": "werktag",
+    "source": "week",
+    "detail": null,
+    "adjusted": false,
+    "adjustment": null,
+    "order": [
+     "aufstehen",
+     "morgen",
+     "mittag",
+     "abend",
+     "einschlafen"
+    ],
+    "entries": [
+     {
+      "key": "aufstehen",
+      "start": "2026-11-10T06:30:00+01:00"
+     },
+     {
+      "key": "morgen",
+      "start": "2026-11-10T07:00:00+01:00"
+     },
+     {
+      "key": "mittag",
+      "start": "2026-11-10T12:00:00+01:00"
+     },
+     {
+      "key": "abend",
+      "start": "2026-11-10T18:30:00+01:00"
+     },
+     {
+      "key": "einschlafen",
+      "start": "2026-11-10T22:30:00+01:00"
+     }
+    ],
+    "end": "2026-11-10T23:30:00+01:00",
+    "dropped": [],
+    "window": {
+     "start": "2026-11-10T06:30:00+01:00",
+     "end": "2026-11-10T23:30:00+01:00"
+    }
+   }
+  ],
+  "segments": [
+   {
+    "key": "nacht",
+    "start": "2026-11-09T00:30:00+01:00",
+    "end": "2026-11-09T06:30:00+01:00",
+    "day": null
+   },
+   {
+    "key": "aufstehen",
+    "start": "2026-11-09T06:30:00+01:00",
+    "end": "2026-11-09T07:00:00+01:00",
+    "day": "2026-11-09"
+   },
+   {
+    "key": "morgen",
+    "start": "2026-11-09T07:00:00+01:00",
+    "end": "2026-11-09T12:00:00+01:00",
+    "day": "2026-11-09"
+   },
+   {
+    "key": "mittag",
+    "start": "2026-11-09T12:00:00+01:00",
+    "end": "2026-11-09T18:30:00+01:00",
+    "day": "2026-11-09"
+   },
+   {
+    "key": "abend",
+    "start": "2026-11-09T18:30:00+01:00",
+    "end": "2026-11-09T23:00:00+01:00",
+    "day": "2026-11-09"
+   },
+   {
+    "key": "einschlafen",
+    "start": "2026-11-09T23:00:00+01:00",
+    "end": "2026-11-09T23:30:00+01:00",
+    "day": "2026-11-09"
+   },
+   {
+    "key": "nacht",
+    "start": "2026-11-09T23:30:00+01:00",
+    "end": "2026-11-10T06:30:00+01:00",
+    "day": null
+   },
+   {
+    "key": "aufstehen",
+    "start": "2026-11-10T06:30:00+01:00",
+    "end": "2026-11-10T07:00:00+01:00",
+    "day": "2026-11-10"
+   },
+   {
+    "key": "morgen",
+    "start": "2026-11-10T07:00:00+01:00",
+    "end": "2026-11-10T12:00:00+01:00",
+    "day": "2026-11-10"
+   },
+   {
+    "key": "mittag",
+    "start": "2026-11-10T12:00:00+01:00",
+    "end": "2026-11-10T18:30:00+01:00",
+    "day": "2026-11-10"
+   },
+   {
+    "key": "abend",
+    "start": "2026-11-10T18:30:00+01:00",
+    "end": "2026-11-10T22:30:00+01:00",
+    "day": "2026-11-10"
+   },
+   {
+    "key": "einschlafen",
+    "start": "2026-11-10T22:30:00+01:00",
+    "end": "2026-11-10T23:30:00+01:00",
+    "day": "2026-11-10"
+   },
+   {
+    "key": "nacht",
+    "start": "2026-11-10T23:30:00+01:00",
+    "end": "2026-11-11T06:30:00+01:00",
+    "day": null
+   }
+  ]
+ },
+ "rhythms": [
+  {
+   "entry_id": "01M6Y58QW959S3941MV1ZW6PVK",
+   "title": "Wohnung",
+   "device_id": "487078badbb02d4327d2ef81f8f0b14e",
+   "options": {
+    "base": {
+     "key": "nacht",
+     "name": "Nacht",
+     "color": "#2e3a6b",
+     "transition": 60,
+     "icon": "mdi:weather-night"
+    },
+    "times_of_day": [
+     {
+      "key": "aufstehen",
+      "name": "Aufstehen",
+      "icon": "mdi:weather-sunset-up",
+      "color": "#f2a65a",
+      "transition": 60
+     },
+     {
+      "key": "morgen",
+      "name": "Morgen",
+      "icon": "mdi:coffee-outline",
+      "color": "#f2c94c",
+      "transition": 60
+     },
+     {
+      "key": "mittag",
+      "name": "Mittag",
+      "color": "#7cc6e8",
+      "transition": 60,
+      "icon": "mdi:white-balance-sunny"
+     },
+     {
+      "key": "abend",
+      "name": "Abend",
+      "color": "#c46bae",
+      "transition": 60,
+      "icon": "mdi:weather-sunset-down"
+     },
+     {
+      "key": "einschlafen",
+      "name": "Einschlafen",
+      "color": "#6c63b5",
+      "transition": 60,
+      "icon": "mdi:bed-outline"
+     }
+    ],
+    "models": [
+     {
+      "key": "werktag",
+      "name": "Werktag",
+      "entries": [
+       {
+        "tod": "aufstehen",
+        "at": {
+         "kind": "fixed",
+         "time": "06:30",
+         "next_day": false
+        }
+       },
+       {
+        "tod": "morgen",
+        "at": {
+         "kind": "fixed",
+         "time": "07:00",
+         "next_day": false
+        }
+       },
+       {
+        "tod": "mittag",
+        "at": {
+         "kind": "fixed",
+         "time": "12:00",
+         "next_day": false
+        }
+       },
+       {
+        "tod": "abend",
+        "at": {
+         "kind": "sun",
+         "event": "sunset",
+         "offset": 60,
+         "earliest": "18:30",
+         "latest": "21:00",
+         "next_day": false
+        }
+       },
+       {
+        "tod": "einschlafen",
+        "at": {
+         "kind": "fixed",
+         "time": "22:30",
+         "next_day": false
+        }
+       }
+      ],
+      "end": {
+       "kind": "fixed",
+       "time": "23:30",
+       "next_day": false
+      }
+     },
+     {
+      "key": "wochenende",
+      "name": "Wochenende",
+      "entries": [
+       {
+        "tod": "aufstehen",
+        "at": {
+         "kind": "fixed",
+         "time": "08:00",
+         "next_day": false
+        }
+       },
+       {
+        "tod": "morgen",
+        "at": {
+         "kind": "fixed",
+         "time": "08:30",
+         "next_day": false
+        }
+       },
+       {
+        "tod": "abend",
+        "at": {
+         "kind": "fixed",
+         "time": "19:00",
+         "next_day": false
+        }
+       },
+       {
+        "tod": "einschlafen",
+        "at": {
+         "kind": "fixed",
+         "time": "23:00",
+         "next_day": false
+        }
+       }
+      ],
+      "end": {
+       "kind": "fixed",
+       "time": "00:30",
+       "next_day": true
+      }
+     }
+    ],
+    "week": {
+     "mon": "werktag",
+     "tue": "werktag",
+     "wed": "werktag",
+     "thu": "werktag",
+     "fri": "werktag",
+     "sat": "wochenende",
+     "sun": "wochenende"
+    },
+    "location": null,
+    "calendar_links": [
+     {
+      "calendar": "calendar.feiertage",
+      "match": "",
+      "model": "wochenende"
+     }
+    ],
+    "version": 1
+   },
+   "entities": {
+    "choose": "select.wohnung_tageszeit_wahlen",
+    "time_of_day": "sensor.wohnung_tageszeit",
+    "model": "sensor.wohnung_tagesmodell",
+    "next_change": "sensor.wohnung_nachster_wechsel",
+    "progress": "sensor.wohnung_fortschritt",
+    "overridden": "binary_sensor.wohnung_ubersteuert"
+   }
+  }
+ ],
+ "month": [
+  {
+   "day": "2026-10-26",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-10-27",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-10-28",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-10-29",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-10-30",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-10-31",
+   "model": "wochenende",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-01",
+   "model": "wochenende",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-02",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-03",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-04",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-05",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-06",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-07",
+   "model": "wochenende",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-08",
+   "model": "wochenende",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-09",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": {
+    "model": null,
+    "times": {
+     "einschlafen": {
+      "kind": "fixed",
+      "time": "23:00",
+      "next_day": false
+     }
+    },
+    "end": null
+   }
+  },
+  {
+   "day": "2026-11-10",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-11",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-12",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-13",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-14",
+   "model": "wochenende",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-15",
+   "model": "wochenende",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-16",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-17",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-18",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-19",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-20",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-21",
+   "model": "wochenende",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-22",
+   "model": "wochenende",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-23",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-24",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-25",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-26",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-27",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-28",
+   "model": "wochenende",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-29",
+   "model": "wochenende",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-11-30",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-12-01",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-12-02",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-12-03",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-12-04",
+   "model": "werktag",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-12-05",
+   "model": "wochenende",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  },
+  {
+   "day": "2026-12-06",
+   "model": "wochenende",
+   "source": "week",
+   "detail": null,
+   "adjustment": null
+  }
+ ],
+ "preview": [
+  {
+   "day": "2026-11-09",
+   "entries": [
+    {
+     "key": "aufstehen",
+     "start": "2026-11-09T06:30:00+01:00"
+    },
+    {
+     "key": "morgen",
+     "start": "2026-11-09T07:00:00+01:00"
+    },
+    {
+     "key": "mittag",
+     "start": "2026-11-09T12:00:00+01:00"
+    },
+    {
+     "key": "abend",
+     "start": "2026-11-09T18:30:00+01:00"
+    },
+    {
+     "key": "einschlafen",
+     "start": "2026-11-09T22:30:00+01:00"
+    }
+   ],
+   "end": "2026-11-09T23:30:00+01:00",
+   "dropped": []
+  },
+  {
+   "day": "2026-06-21",
+   "entries": [
+    {
+     "key": "aufstehen",
+     "start": "2026-06-21T06:30:00+02:00"
+    },
+    {
+     "key": "morgen",
+     "start": "2026-06-21T07:00:00+02:00"
+    },
+    {
+     "key": "mittag",
+     "start": "2026-06-21T12:00:00+02:00"
+    },
+    {
+     "key": "abend",
+     "start": "2026-06-21T21:00:00+02:00"
+    },
+    {
+     "key": "einschlafen",
+     "start": "2026-06-21T22:30:00+02:00"
+    }
+   ],
+   "end": "2026-06-21T23:30:00+02:00",
+   "dropped": []
+  },
+  {
+   "day": "2026-12-21",
+   "entries": [
+    {
+     "key": "aufstehen",
+     "start": "2026-12-21T06:30:00+01:00"
+    },
+    {
+     "key": "morgen",
+     "start": "2026-12-21T07:00:00+01:00"
+    },
+    {
+     "key": "mittag",
+     "start": "2026-12-21T12:00:00+01:00"
+    },
+    {
+     "key": "abend",
+     "start": "2026-12-21T18:30:00+01:00"
+    },
+    {
+     "key": "einschlafen",
+     "start": "2026-12-21T22:30:00+01:00"
+    }
+   ],
+   "end": "2026-12-21T23:30:00+01:00",
+   "dropped": []
+  }
+ ],
+ "diagnostics": {
+  "log": [
+   {
+    "at": "2026-11-09T19:10:00+01:00",
+    "kind": "calendar_error",
+    "calendar": "calendar.feiertage",
+    "error": "not loaded"
+   },
+   {
+    "at": "2026-11-09T19:10:00+01:00",
+    "kind": "adjust",
+    "day": "2026-11-09",
+    "adjustment": {
+     "model": null,
+     "times": {
+      "einschlafen": {
+       "kind": "fixed",
+       "time": "23:00",
+       "next_day": false
+      }
+     },
+     "end": null
+    }
+   },
+   {
+    "at": "2026-11-09T19:10:00+01:00",
+    "kind": "calendar_error",
+    "calendar": "calendar.feiertage",
+    "error": "Action calendar.get_events not found"
+   }
+  ],
+  "calendars": {
+   "calendar.feiertage": {
+    "fetched": null,
+    "events": 0,
+    "error": "Action calendar.get_events not found"
+   }
+  }
+ },
+ "templates": [
+  {
+   "key": "aufstehen",
+   "name": "Aufstehen",
+   "icon": "mdi:weather-sunset-up",
+   "color": "#f2a65a",
+   "transition": 60
+  },
+  {
+   "key": "morgen",
+   "name": "Morgen",
+   "icon": "mdi:coffee-outline",
+   "color": "#f2c94c",
+   "transition": 60
+  },
+  {
+   "key": "mittag",
+   "name": "Mittag",
+   "icon": "mdi:white-balance-sunny",
+   "color": "#7cc6e8",
+   "transition": 60
+  },
+  {
+   "key": "nachmittag",
+   "name": "Nachmittag",
+   "icon": "mdi:weather-partly-cloudy",
+   "color": "#6fb98f",
+   "transition": 60
+  },
+  {
+   "key": "abend",
+   "name": "Abend",
+   "icon": "mdi:weather-sunset-down",
+   "color": "#c46bae",
+   "transition": 60
+  },
+  {
+   "key": "einschlafen",
+   "name": "Einschlafen",
+   "icon": "mdi:bed-outline",
+   "color": "#6c63b5",
+   "transition": 60
+  }
+ ],
+ "pinned": {
+  "entry_id": "01M6Y58QW959S3941MV1ZW6PVK",
+  "title": "Wohnung",
+  "device_id": "487078badbb02d4327d2ef81f8f0b14e",
+  "now": "2026-11-09T19:10:00+01:00",
+  "base": {
+   "key": "nacht",
+   "name": "Nacht",
+   "color": "#2e3a6b",
+   "transition": 60,
+   "icon": "mdi:weather-night"
+  },
+  "times_of_day": [
+   {
+    "key": "aufstehen",
+    "name": "Aufstehen",
+    "icon": "mdi:weather-sunset-up",
+    "color": "#f2a65a",
+    "transition": 60
+   },
+   {
+    "key": "morgen",
+    "name": "Morgen",
+    "icon": "mdi:coffee-outline",
+    "color": "#f2c94c",
+    "transition": 60
+   },
+   {
+    "key": "mittag",
+    "name": "Mittag",
+    "color": "#7cc6e8",
+    "transition": 60,
+    "icon": "mdi:white-balance-sunny"
+   },
+   {
+    "key": "abend",
+    "name": "Abend",
+    "color": "#c46bae",
+    "transition": 60,
+    "icon": "mdi:weather-sunset-down"
+   },
+   {
+    "key": "einschlafen",
+    "name": "Einschlafen",
+    "color": "#6c63b5",
+    "transition": 60,
+    "icon": "mdi:bed-outline"
+   }
+  ],
+  "models": [
+   {
+    "key": "werktag",
+    "name": "Werktag"
+   },
+   {
+    "key": "wochenende",
+    "name": "Wochenende"
+   }
+  ],
+  "state": {
+   "key": "einschlafen",
+   "since": "2026-11-09T19:10:00+01:00",
+   "until": "2026-11-09T23:30:00+01:00",
+   "next_key": "nacht",
+   "today": "2026-11-09",
+   "pinned": true,
+   "pin_end": "2026-11-09T23:30:00+01:00",
+   "planned": "abend",
+   "pin": {
+    "key": "einschlafen",
+    "day": "2026-11-09",
+    "mode": "next_change",
+    "set_at": "2026-11-09T19:10:00+01:00",
+    "until": null
+   }
+  },
+  "choosable": [
+   "aufstehen",
+   "morgen",
+   "mittag",
+   "abend",
+   "einschlafen",
+   "nacht"
+  ],
+  "next_day_start": "2026-11-10T06:30:00+01:00",
+  "days": [
+   {
+    "day": "2026-11-09",
+    "model": "werktag",
+    "source": "week",
+    "detail": null,
+    "adjusted": true,
+    "adjustment": {
+     "model": null,
+     "times": {
+      "einschlafen": {
+       "kind": "fixed",
+       "time": "23:00",
+       "next_day": false
+      }
+     },
+     "end": null
+    },
+    "order": [
+     "aufstehen",
+     "morgen",
+     "mittag",
+     "abend",
+     "einschlafen"
+    ],
+    "entries": [
+     {
+      "key": "aufstehen",
+      "start": "2026-11-09T06:30:00+01:00"
+     },
+     {
+      "key": "morgen",
+      "start": "2026-11-09T07:00:00+01:00"
+     },
+     {
+      "key": "mittag",
+      "start": "2026-11-09T12:00:00+01:00"
+     },
+     {
+      "key": "abend",
+      "start": "2026-11-09T18:30:00+01:00"
+     },
+     {
+      "key": "einschlafen",
+      "start": "2026-11-09T23:00:00+01:00"
+     }
+    ],
+    "end": "2026-11-09T23:30:00+01:00",
+    "dropped": [],
+    "window": {
+     "start": "2026-11-09T06:30:00+01:00",
+     "end": "2026-11-09T23:30:00+01:00"
+    }
+   },
+   {
+    "day": "2026-11-10",
+    "model": "werktag",
+    "source": "week",
+    "detail": null,
+    "adjusted": false,
+    "adjustment": null,
+    "order": [
+     "aufstehen",
+     "morgen",
+     "mittag",
+     "abend",
+     "einschlafen"
+    ],
+    "entries": [
+     {
+      "key": "aufstehen",
+      "start": "2026-11-10T06:30:00+01:00"
+     },
+     {
+      "key": "morgen",
+      "start": "2026-11-10T07:00:00+01:00"
+     },
+     {
+      "key": "mittag",
+      "start": "2026-11-10T12:00:00+01:00"
+     },
+     {
+      "key": "abend",
+      "start": "2026-11-10T18:30:00+01:00"
+     },
+     {
+      "key": "einschlafen",
+      "start": "2026-11-10T22:30:00+01:00"
+     }
+    ],
+    "end": "2026-11-10T23:30:00+01:00",
+    "dropped": [],
+    "window": {
+     "start": "2026-11-10T06:30:00+01:00",
+     "end": "2026-11-10T23:30:00+01:00"
+    }
+   }
+  ],
+  "segments": [
+   {
+    "key": "nacht",
+    "start": "2026-11-09T00:30:00+01:00",
+    "end": "2026-11-09T06:30:00+01:00",
+    "day": null
+   },
+   {
+    "key": "aufstehen",
+    "start": "2026-11-09T06:30:00+01:00",
+    "end": "2026-11-09T07:00:00+01:00",
+    "day": "2026-11-09"
+   },
+   {
+    "key": "morgen",
+    "start": "2026-11-09T07:00:00+01:00",
+    "end": "2026-11-09T12:00:00+01:00",
+    "day": "2026-11-09"
+   },
+   {
+    "key": "mittag",
+    "start": "2026-11-09T12:00:00+01:00",
+    "end": "2026-11-09T18:30:00+01:00",
+    "day": "2026-11-09"
+   },
+   {
+    "key": "abend",
+    "start": "2026-11-09T18:30:00+01:00",
+    "end": "2026-11-09T19:10:00+01:00",
+    "day": "2026-11-09"
+   },
+   {
+    "key": "einschlafen",
+    "start": "2026-11-09T19:10:00+01:00",
+    "end": "2026-11-09T23:30:00+01:00",
+    "day": "2026-11-09"
+   },
+   {
+    "key": "nacht",
+    "start": "2026-11-09T23:30:00+01:00",
+    "end": "2026-11-10T06:30:00+01:00",
+    "day": null
+   },
+   {
+    "key": "aufstehen",
+    "start": "2026-11-10T06:30:00+01:00",
+    "end": "2026-11-10T07:00:00+01:00",
+    "day": "2026-11-10"
+   },
+   {
+    "key": "morgen",
+    "start": "2026-11-10T07:00:00+01:00",
+    "end": "2026-11-10T12:00:00+01:00",
+    "day": "2026-11-10"
+   },
+   {
+    "key": "mittag",
+    "start": "2026-11-10T12:00:00+01:00",
+    "end": "2026-11-10T18:30:00+01:00",
+    "day": "2026-11-10"
+   },
+   {
+    "key": "abend",
+    "start": "2026-11-10T18:30:00+01:00",
+    "end": "2026-11-10T22:30:00+01:00",
+    "day": "2026-11-10"
+   },
+   {
+    "key": "einschlafen",
+    "start": "2026-11-10T22:30:00+01:00",
+    "end": "2026-11-10T23:30:00+01:00",
+    "day": "2026-11-10"
+   },
+   {
+    "key": "nacht",
+    "start": "2026-11-10T23:30:00+01:00",
+    "end": "2026-11-11T06:30:00+01:00",
+    "day": null
+   }
+  ]
+ }
+}
