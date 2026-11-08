@@ -1,7 +1,5 @@
 pin:
   target:
-    device:
-      integration: cloudless_maestro
     entity:
       integration: cloudless_maestro
   fields:
@@ -33,15 +31,11 @@ pin:
 
 resume:
   target:
-    device:
-      integration: cloudless_maestro
     entity:
       integration: cloudless_maestro
 
 adjust_day:
   target:
-    device:
-      integration: cloudless_maestro
     entity:
       integration: cloudless_maestro
   fields:
@@ -64,8 +58,6 @@ adjust_day:
 
 clear_day:
   target:
-    device:
-      integration: cloudless_maestro
     entity:
       integration: cloudless_maestro
   fields:
@@ -75,7 +67,5 @@ clear_day:
 
 refresh_calendars:
   target:
-    device:
-      integration: cloudless_maestro
     entity:
       integration: cloudless_maestro

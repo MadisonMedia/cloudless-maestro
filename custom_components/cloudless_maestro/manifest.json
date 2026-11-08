@@ -5,6 +5,10 @@
     "calendar",
     "lovelace"
   ],
+  "categories": [
+    "helpers",
+    "lighting"
+  ],
   "codeowners": [
     "@MadisonMedia"
   ],
