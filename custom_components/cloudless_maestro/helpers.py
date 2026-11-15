@@ -18,12 +18,20 @@ def rhythm_for_entry(hass: HomeAssistant, entry_id: str) -> Rhythm | None:
     return getattr(entry, "runtime_data", None)
 
 
+def _entries_of(device: dr.DeviceEntry) -> set[str]:
+    """Return the config entries of a device, on old and new Home Assistant alike."""
+    single = getattr(device, "config_entry_id", None)
+    if single:
+        return {single}
+    return set(getattr(device, "config_entries", ()))
+
+
 def rhythm_for_device(hass: HomeAssistant, device_id: str) -> Rhythm | None:
     """Return the running rhythm of a device."""
     device = dr.async_get(hass).async_get(device_id)
     if device is None:
         return None
-    for entry_id in device.config_entries:
+    for entry_id in _entries_of(device):
         if (rhythm := rhythm_for_entry(hass, entry_id)) is not None:
             return rhythm
     return None

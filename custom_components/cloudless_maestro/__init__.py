@@ -21,7 +21,10 @@ from .const import (
     ATTR_DATE,
     ATTR_DURATION,
     ATTR_END,
+    ATTR_LIGHTS,
+    ATTR_MODE,
     ATTR_MODEL,
+    ATTR_RULE,
     ATTR_TIME,
     ATTR_TIME_OF_DAY,
     ATTR_TIMES,
@@ -30,18 +33,21 @@ from .const import (
     PANEL_URL,
     SERVICE_ADJUST_DAY,
     SERVICE_CLEAR_DAY,
+    SERVICE_FORGET,
     SERVICE_PIN,
     SERVICE_REFRESH_CALENDARS,
     SERVICE_RESUME,
+    SERVICE_TOGGLE_RULE,
     STORAGE_VERSION,
 )
 from .frontend import async_register_frontend
+from .helpers import _entries_of
 from .model import KEY, service_time
 from .rhythm import Rhythm
 from .schedule import PIN_MODES, PIN_NEXT_CHANGE
 from .websocket_api import async_register_websocket_commands
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.SELECT, Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.SELECT, Platform.SENSOR, Platform.SWITCH]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -63,7 +69,7 @@ def rhythms_for_call(call: ServiceCall) -> list[Rhythm]:
     for device_id in referenced.referenced_devices:
         device = devices.async_get(device_id)
         if device is not None:
-            entries.update(device.config_entries)
+            entries.update(_entries_of(device))
     entities = er.async_get(hass)
     for entity_id in referenced.referenced | referenced.indirectly_referenced:
         item = entities.async_get(entity_id)
@@ -107,7 +113,22 @@ SERVICES: dict[str, tuple[dict[Any, Any], Callable[[Rhythm, ServiceCall], Awaita
     ),
     SERVICE_CLEAR_DAY: ({vol.Optional(ATTR_DATE): cv.date}, lambda r, c: r.async_clear_day(c.data.get(ATTR_DATE))),
     SERVICE_REFRESH_CALENDARS: ({}, lambda r, c: r.async_refresh_calendars()),
+    SERVICE_TOGGLE_RULE: (
+        {vol.Required(ATTR_RULE): str, vol.Optional(ATTR_MODE, default="toggle"): vol.In(("toggle", "on", "off"))},
+        lambda r, c: _toggle_rule(r, c.data[ATTR_RULE], c.data[ATTR_MODE]),
+    ),
+    SERVICE_FORGET: (
+        {vol.Optional(ATTR_LIGHTS): cv.entity_ids},
+        lambda r, c: r.rules.async_forget(c.data.get(ATTR_LIGHTS)),
+    ),
 }
+
+
+async def _toggle_rule(rhythm: Rhythm, ident: str, mode: str) -> None:
+    run = rhythm.rules.run_by(ident)
+    if run is None:
+        raise ServiceValidationError(f"{rhythm.title} has no rule named {ident}")
+    await rhythm.rules.async_toggle(run, mode)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:

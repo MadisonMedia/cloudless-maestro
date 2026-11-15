@@ -1,4 +1,4 @@
-"""A rhythm's settings: validation, stable keys and templates."""
+"""A rhythm's settings: validation, stable keys, templates and the rules."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import voluptuous as vol
 
 from .schedule import SUN_EVENTS, WEEKDAYS
 
-OPTIONS_VERSION = 1
+OPTIONS_VERSION = 2
 
 KEY_RE = re.compile(r"^[a-z0-9][a-z0-9_]{0,39}$")
 CLOCK_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
@@ -22,10 +22,26 @@ CLOCK = vol.All(str, vol.Match(CLOCK_RE, msg="a time looks like 06:30"))
 COLOR = vol.All(str, vol.Match(r"^#[0-9a-fA-F]{6}$", msg="a color looks like #f2a65a"))
 ICON = vol.All(str, vol.Match(r"^[a-z0-9-]+:[a-z0-9-]+$", msg="an icon looks like mdi:weather-night"))
 NAME = vol.All(str, vol.Strip, vol.Length(min=1, max=60))
+ENTITY = vol.All(str, vol.Match(r"^[a-z_]+\.[a-z0-9_]+$", msg="an entity id looks like light.kitchen"))
+LIGHT = vol.All(str, vol.Match(r"^light\.[a-z0-9_]+$", msg="a light's entity id starts with light."))
 
 DEFAULT_ICON = "mdi:clock-outline"
 DEFAULT_COLOR = "#7a8599"
-DEFAULT_TRANSITION = 60
+
+# Reactions of a rule's row, what happens when a time of day begins, and the rule-level choices.
+REACT_ON = "on"
+REACT_OFF_ONLY = "off_only"
+REACT_NONE = "none"
+REACTIONS = (REACT_ON, REACT_OFF_ONLY, REACT_NONE)
+BEGIN_FOLLOW_FREE = "follow_free"
+BEGIN_FOLLOW = "follow"
+BEGIN_KEEP = "keep"
+BEGIN_OFF = "off"
+BEGINS = (BEGIN_FOLLOW_FREE, BEGIN_FOLLOW, BEGIN_KEEP, BEGIN_OFF)
+MANUAL_AFTER_SAME = "same"
+MANUAL_AFTER_NEVER = "never"
+EXTERNAL_ON_APPLY = "apply"
+EXTERNAL_ON_KEEP = "keep"
 
 _FIXED = vol.Schema(
     {
@@ -66,7 +82,8 @@ TIME_OF_DAY = vol.Schema(
         vol.Required("name"): NAME,
         vol.Optional("icon", default=DEFAULT_ICON): ICON,
         vol.Optional("color", default=DEFAULT_COLOR): COLOR,
-        vol.Optional("transition", default=DEFAULT_TRANSITION): vol.All(vol.Coerce(int), vol.Range(min=0, max=3600)),
+        # Until 0.1.0b1 the transition lived here. It is a default of the rules now.
+        vol.Remove("transition"): object,
     }
 )
 BASE = vol.Schema(
@@ -74,8 +91,8 @@ BASE = vol.Schema(
         vol.Required("key"): KEY,
         vol.Required("name"): NAME,
         vol.Optional("icon", default="mdi:weather-night"): ICON,
-        vol.Optional("color", default="#2e3a6b"): COLOR,
-        vol.Optional("transition", default=DEFAULT_TRANSITION): vol.All(vol.Coerce(int), vol.Range(min=0, max=3600)),
+        vol.Optional("color", default="#37474f"): COLOR,
+        vol.Remove("transition"): object,
     }
 )
 MODEL = vol.Schema(
@@ -102,6 +119,69 @@ LOCATION = vol.Any(
         }
     ),
 )
+
+_MINUTES = vol.All(vol.Coerce(int), vol.Range(min=0, max=1440))
+_SECONDS = vol.All(vol.Coerce(int), vol.Range(min=0, max=7200))
+DEFAULTS = vol.Schema(
+    {
+        vol.Optional("transition", default=60): _SECONDS,
+        vol.Optional("memory", default=15): _MINUTES,
+        vol.Optional("after", default=3): _MINUTES,
+        vol.Optional("warn", default=True): bool,
+        vol.Optional("warn_seconds", default=20): vol.All(vol.Coerce(int), vol.Range(min=3, max=300)),
+        vol.Optional("lock", default=30): vol.All(vol.Coerce(int), vol.Range(min=0, max=3600)),
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+COLOR_VALUE = vol.Any(
+    None,
+    vol.Schema({vol.Required("kelvin"): vol.All(vol.Coerce(int), vol.Range(min=1000, max=10000))}),
+    vol.Schema({vol.Required("rgb"): vol.All([vol.All(vol.Coerce(int), vol.Range(min=0, max=255))], vol.Length(3, 3))}),
+)
+ROW = vol.Schema(
+    {
+        vol.Optional("react", default=REACT_ON): vol.In(REACTIONS),
+        vol.Optional("brightness", default=None): vol.Any(None, vol.All(vol.Coerce(int), vol.Range(min=1, max=100))),
+        vol.Optional("color", default=None): COLOR_VALUE,
+        vol.Optional("after", default=None): vol.Any(None, _MINUTES),
+        vol.Optional("begin", default=BEGIN_FOLLOW_FREE): vol.In(BEGINS),
+        vol.Optional("transition", default=None): vol.Any(None, _SECONDS),
+        vol.Optional("memory", default=None): vol.Any(None, _MINUTES),
+        vol.Optional("forget", default=False): bool,
+        vol.Optional("lux_below", default=None): vol.Any(None, vol.Coerce(float)),
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+DEVICE = vol.Schema(
+    {
+        vol.Required("entity"): ENTITY,
+        vol.Optional("values", default=dict): {KEY: vol.Any(None, bool, vol.Coerce(float), str)},
+    }
+)
+BUTTON = vol.Schema({vol.Required("entity"): ENTITY, vol.Optional("event", default=None): vol.Any(None, str)})
+RULE = vol.Schema(
+    {
+        vol.Required("id"): KEY,
+        vol.Required("name"): NAME,
+        vol.Optional("active", default=True): bool,
+        vol.Optional("lights", default=list): [LIGHT],
+        vol.Optional("motion", default=list): [ENTITY],
+        vol.Optional("buttons", default=list): [BUTTON],
+        vol.Optional("manual", default=True): bool,
+        vol.Optional("lux", default=None): vol.Any(
+            None, vol.Schema({vol.Required("sensor"): ENTITY, vol.Required("below"): vol.Coerce(float)})
+        ),
+        vol.Optional("manual_after", default=MANUAL_AFTER_SAME): vol.Any(
+            MANUAL_AFTER_SAME, MANUAL_AFTER_NEVER, vol.All(vol.Coerce(int), vol.Range(min=1, max=1440))
+        ),
+        vol.Optional("external_on", default=EXTERNAL_ON_APPLY): vol.In((EXTERNAL_ON_APPLY, EXTERNAL_ON_KEEP)),
+        vol.Optional("warn", default=None): vol.Any(None, bool),
+        vol.Optional("lock", default=None): vol.Any(None, vol.All(vol.Coerce(int), vol.Range(min=0, max=3600))),
+        vol.Optional("rows", default=dict): {KEY: ROW},
+        vol.Optional("devices", default=list): [DEVICE],
+    },
+    extra=vol.REMOVE_EXTRA,
+)
 _OPTIONS = vol.Schema(
     {
         vol.Optional("version", default=OPTIONS_VERSION): vol.Coerce(int),
@@ -111,6 +191,8 @@ _OPTIONS = vol.Schema(
         vol.Optional("week", default=dict): vol.Schema({vol.Optional(day): vol.Any(None, KEY) for day in WEEKDAYS}),
         vol.Optional("calendar_links", default=list): [LINK],
         vol.Optional("location", default=None): LOCATION,
+        vol.Optional("defaults", default=dict): DEFAULTS,
+        vol.Optional("rules", default=list): [RULE],
     },
     extra=vol.REMOVE_EXTRA,
 )
@@ -130,6 +212,7 @@ def normalize_options(raw: Mapping[str, Any]) -> dict[str, Any]:
     tods = [t["key"] for t in options["times_of_day"]]
     _unique([options["base"]["key"], *tods], "times of day")
     _unique([m["key"] for m in options["models"]], "day models")
+    _unique([r["id"] for r in options["rules"]], "rules")
     known = set(tods)
     for model in options["models"]:
         used = [e["tod"] for e in model["entries"]]
@@ -149,6 +232,15 @@ def normalize_options(raw: Mapping[str, Any]) -> dict[str, Any]:
     for link in options["calendar_links"]:
         if link["model"] not in models:
             raise vol.Invalid(f"a calendar link uses an unknown day model: {link['model']}")
+    # Rows and device values for times of day that no longer exist are dropped quietly,
+    # so deleting a time of day never makes a rhythm unsavable.
+    all_keys = known | {options["base"]["key"]}
+    for rule in options["rules"]:
+        rule["rows"] = {k: v for k, v in rule["rows"].items() if k in all_keys}
+        for device in rule["devices"]:
+            device["values"] = {k: v for k, v in device["values"].items() if k in all_keys and v is not None}
+        rule["lights"] = list(dict.fromkeys(rule["lights"]))
+        rule["motion"] = list(dict.fromkeys(rule["motion"]))
     options["version"] = OPTIONS_VERSION
     return options
 
@@ -236,14 +328,41 @@ _NAMES = {
         "daily": "Daily",
     },
 }
-_LOOKS = {
-    "wake": ("mdi:weather-sunset-up", "#f2a65a"),
-    "morning": ("mdi:coffee-outline", "#f2c94c"),
-    "midday": ("mdi:white-balance-sunny", "#7cc6e8"),
-    "afternoon": ("mdi:weather-partly-cloudy", "#6fb98f"),
-    "evening": ("mdi:weather-sunset-down", "#c46bae"),
-    "bedtime": ("mdi:bed-outline", "#6c63b5"),
-    "day": ("mdi:white-balance-sunny", "#f2c94c"),
+_ICONS = {
+    "base": "mdi:weather-night",
+    "wake": "mdi:weather-sunset-up",
+    "morning": "mdi:coffee-outline",
+    "midday": "mdi:white-balance-sunny",
+    "afternoon": "mdi:weather-partly-cloudy",
+    "evening": "mdi:weather-sunset-down",
+    "bedtime": "mdi:bed-outline",
+    "day": "mdi:white-balance-sunny",
+}
+# Two palettes: Home Assistant's own interface colors, and deep warm earth tones.
+PALETTE_HA = "ha"
+PALETTE_EARTH = "earth"
+PALETTES = (PALETTE_HA, PALETTE_EARTH)
+_COLORS = {
+    PALETTE_HA: {
+        "base": "#37474f",
+        "wake": "#ff9800",
+        "morning": "#ffc107",
+        "midday": "#03a9f4",
+        "afternoon": "#009688",
+        "evening": "#e91e63",
+        "bedtime": "#673ab7",
+        "day": "#ffc107",
+    },
+    PALETTE_EARTH: {
+        "base": "#1f2937",
+        "wake": "#c2410c",
+        "morning": "#b45309",
+        "midday": "#0f766e",
+        "afternoon": "#4d7c0f",
+        "evening": "#86198f",
+        "bedtime": "#3730a3",
+        "day": "#b45309",
+    },
 }
 
 TEMPLATE_DAY = "day"
@@ -255,23 +374,29 @@ def _fixed(clock: str, next_day: bool = False) -> dict[str, Any]:
     return {"kind": "fixed", "time": clock, "next_day": next_day}
 
 
-def time_of_day_templates(language: str) -> list[dict[str, Any]]:
+def _look(kind: str, palette: str) -> tuple[str, str]:
+    colors = _COLORS.get(palette, _COLORS[PALETTE_HA])
+    return _ICONS[kind], colors[kind]
+
+
+def time_of_day_templates(language: str, palette: str = PALETTE_HA) -> list[dict[str, Any]]:
     """Return the templates offered when adding a time of day, in the user's language."""
     names = _NAMES.get(language, _NAMES["en"])
-    return [
-        {"key": make_key(names[k]), "name": names[k], "icon": icon, "color": color, "transition": DEFAULT_TRANSITION}
-        for k, (icon, color) in _LOOKS.items()
-        if k != "day"
-    ]
+    out = []
+    for kind in ("wake", "morning", "midday", "afternoon", "evening", "bedtime"):
+        icon, color = _look(kind, palette)
+        out.append({"key": make_key(names[kind]), "name": names[kind], "icon": icon, "color": color})
+    return out
 
 
-def default_options(language: str = "en", template: str = TEMPLATE_DAY) -> dict[str, Any]:
+def default_options(language: str = "en", template: str = TEMPLATE_DAY, palette: str = PALETTE_HA) -> dict[str, Any]:
     """Return the settings of a new rhythm."""
     names = _NAMES.get(language, _NAMES["en"])
-    base = {"key": make_key(names["base"]), "name": names["base"], "icon": "mdi:weather-night", "color": "#2e3a6b"}
+    icon, color = _look("base", palette)
+    base = {"key": make_key(names["base"]), "name": names["base"], "icon": icon, "color": color}
 
     def tod(kind: str) -> dict[str, Any]:
-        icon, color = _LOOKS[kind]
+        icon, color = _look(kind, palette)
         return {"key": make_key(names[kind]), "name": names[kind], "icon": icon, "color": color}
 
     if template == TEMPLATE_EMPTY:
@@ -317,3 +442,10 @@ def default_options(language: str = "en", template: str = TEMPLATE_DAY) -> dict[
     }
     week = {d: workday["key"] for d in WEEKDAYS[:5]} | {d: weekend["key"] for d in WEEKDAYS[5:]}
     return normalize_options({"base": base, "times_of_day": tods, "models": [workday, weekend], "week": week})
+
+
+def default_rows(options: Mapping[str, Any], brightness: int = 100) -> dict[str, dict[str, Any]]:
+    """Return rows for a new rule: on everywhere, off only in the base state."""
+    rows = {t["key"]: ROW({"react": REACT_ON, "brightness": brightness}) for t in options["times_of_day"]}
+    rows[options["base"]["key"]] = ROW({"react": REACT_OFF_ONLY, "begin": BEGIN_OFF})
+    return rows

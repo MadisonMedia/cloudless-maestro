@@ -3,8 +3,8 @@
     "step": {
       "user": {
         "title": "New rhythm",
-        "description": "A rhythm is one daily schedule, for example for the flat, a terrarium or a child's room. Times of day, day models and the week plan are set up on the **Maestro** page in the sidebar.",
-        "data": { "name": "Name", "template": "Start with" }
+        "description": "A rhythm is one daily schedule, for example for the flat, a terrarium or a child's room. Times of day, day models, the week plan and the rules are set up on the **Maestro** page in the sidebar.",
+        "data": { "name": "Name", "template": "Start with", "palette": "Colors" }
       }
     }
   },
@@ -15,6 +15,12 @@
         "empty": "One time of day, to build your own"
       }
     },
+    "palette": {
+      "options": {
+        "ha": "Home Assistant's colors",
+        "earth": "Earth: deep, warm tones"
+      }
+    },
     "until": {
       "options": {
         "next_change": "Until the next change",
@@ -22,6 +28,13 @@
         "time": "Until a time",
         "next_day": "Until the next day",
         "reset": "Until reset"
+      }
+    },
+    "rule_mode": {
+      "options": {
+        "toggle": "Toggle",
+        "on": "On",
+        "off": "Off"
       }
     }
   },
@@ -37,6 +50,9 @@
     },
     "binary_sensor": {
       "overridden": { "name": "Overridden" }
+    },
+    "switch": {
+      "rule_active": { "name": "Rule {name}" }
     }
   },
   "device_automation": {
@@ -51,7 +67,8 @@
     },
     "extra_fields": {
       "time_of_day": "Time of day",
-      "times_of_day": "Times of day"
+      "times_of_day": "Times of day",
+      "offset": "Offset in minutes (negative: before the planned time)"
     }
   },
   "services": {
@@ -89,6 +106,21 @@
     "refresh_calendars": {
       "name": "Read calendars again",
       "description": "Reads the linked calendars at once instead of at the next regular update."
+    },
+    "toggle_rule": {
+      "name": "Toggle a rule",
+      "description": "Switches a rule's lights like a button of the rule would: off when any of them is on, otherwise on with the values of the current time of day or the remembered values.",
+      "fields": {
+        "rule": { "name": "Rule", "description": "The name or the key of the rule." },
+        "mode": { "name": "Mode", "description": "Toggle, or always on or off." }
+      }
+    },
+    "forget": {
+      "name": "Forget manual settings",
+      "description": "Forgets what was set by hand, so the lights go on with the values of the time of day again.",
+      "fields": {
+        "lights": { "name": "Lights", "description": "Without lights, all lights of the rhythm." }
+      }
     }
   }
 }

@@ -5,13 +5,15 @@ from __future__ import annotations
 import hashlib
 import logging
 from pathlib import Path
+from typing import Any
 
 from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.start import async_at_started
+from homeassistant.helpers.storage import Store
 
-from .const import PANEL_URL, URL_STATIC
+from .const import DATA_SETTINGS, PANEL_URL, SETTINGS_STORE, URL_STATIC
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,16 +48,42 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
 
     async_at_started(hass, _register_resource)
 
-    if PANEL_URL not in hass.data.get(frontend.DATA_PANELS, {}):
-        await panel_custom.async_register_panel(
-            hass,
-            frontend_url_path=PANEL_URL,
-            webcomponent_name="maestro-panel",
-            sidebar_title="Maestro",
-            sidebar_icon="mdi:timeline-clock-outline",
-            module_url=panel_url,
-            require_admin=True,
-        )
+    store: Store[dict[str, Any]] = Store(hass, 1, SETTINGS_STORE)
+    stored = await store.async_load()
+    sidebar = bool((stored or {}).get("sidebar", True))
+    hass.data[DATA_SETTINGS] = {"store": store, "sidebar": sidebar, "panel_url": panel_url}
+    await _register_panel(hass, panel_url, sidebar)
+
+
+def sidebar_shown(hass: HomeAssistant) -> bool:
+    """Return whether Maestro has an entry in the sidebar."""
+    return bool(hass.data.get(DATA_SETTINGS, {}).get("sidebar", True))
+
+
+async def async_set_sidebar(hass: HomeAssistant, show: bool) -> None:
+    """Add the page to the sidebar or take it out. The page stays reachable by its address."""
+    settings = hass.data.get(DATA_SETTINGS)
+    if settings is None:
+        return
+    settings["sidebar"] = show
+    await settings["store"].async_save({"sidebar": show})
+    if PANEL_URL in hass.data.get(frontend.DATA_PANELS, {}):
+        frontend.async_remove_panel(hass, PANEL_URL)
+    await _register_panel(hass, settings["panel_url"], show)
+
+
+async def _register_panel(hass: HomeAssistant, panel_url: str, sidebar: bool) -> None:
+    if PANEL_URL in hass.data.get(frontend.DATA_PANELS, {}):
+        return
+    await panel_custom.async_register_panel(
+        hass,
+        frontend_url_path=PANEL_URL,
+        webcomponent_name="maestro-panel",
+        sidebar_title="Maestro" if sidebar else None,
+        sidebar_icon="mdi:timeline-clock-outline" if sidebar else None,
+        module_url=panel_url,
+        require_admin=True,
+    )
 
 
 async def _async_register_resource(hass: HomeAssistant, url: str) -> None:

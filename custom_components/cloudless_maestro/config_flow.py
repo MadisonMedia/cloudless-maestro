@@ -9,8 +9,8 @@ from homeassistant.const import CONF_NAME
 from homeassistant.helpers import selector
 import voluptuous as vol
 
-from .const import CONF_TEMPLATE, DOMAIN, PANEL_URL
-from .model import TEMPLATE_DAY, TEMPLATES, default_options
+from .const import CONF_PALETTE, CONF_TEMPLATE, DOMAIN, PANEL_URL
+from .model import PALETTE_HA, PALETTES, TEMPLATE_DAY, TEMPLATES, default_options
 
 
 class MaestroConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -25,7 +25,9 @@ class MaestroConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(
                 title=user_input[CONF_NAME].strip(),
                 data={},
-                options=default_options(language, user_input.get(CONF_TEMPLATE, TEMPLATE_DAY)),
+                options=default_options(
+                    language, user_input.get(CONF_TEMPLATE, TEMPLATE_DAY), user_input.get(CONF_PALETTE, PALETTE_HA)
+                ),
             )
         return self.async_show_form(
             step_id="user",
@@ -34,6 +36,9 @@ class MaestroConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Required(CONF_NAME): selector.TextSelector(),
                     vol.Required(CONF_TEMPLATE, default=TEMPLATE_DAY): selector.SelectSelector(
                         selector.SelectSelectorConfig(options=list(TEMPLATES), translation_key=CONF_TEMPLATE)
+                    ),
+                    vol.Required(CONF_PALETTE, default=PALETTE_HA): selector.SelectSelector(
+                        selector.SelectSelectorConfig(options=list(PALETTES), translation_key=CONF_PALETTE)
                     ),
                 }
             ),

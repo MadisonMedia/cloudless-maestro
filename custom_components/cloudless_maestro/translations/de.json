@@ -3,8 +3,8 @@
     "step": {
       "user": {
         "title": "Neuer Rhythmus",
-        "description": "Ein Rhythmus ist ein eigener Tagesplan, zum Beispiel für die Wohnung, ein Terrarium oder ein Kinderzimmer. Tageszeiten, Tagesmodelle und den Wochenplan stellst du auf der Seite **Maestro** in der Seitenleiste ein.",
-        "data": { "name": "Name", "template": "Beginnen mit" }
+        "description": "Ein Rhythmus ist ein eigener Tagesplan, zum Beispiel für die Wohnung, ein Terrarium oder ein Kinderzimmer. Tageszeiten, Tagesmodelle, Wochenplan und Regeln stellst du auf der Seite **Maestro** in der Seitenleiste ein.",
+        "data": { "name": "Name", "template": "Beginnen mit", "palette": "Farben" }
       }
     }
   },
@@ -15,6 +15,12 @@
         "empty": "Eine Tageszeit, zum Selbstaufbauen"
       }
     },
+    "palette": {
+      "options": {
+        "ha": "Die Farben von Home Assistant",
+        "earth": "Erde: tiefe, warme Töne"
+      }
+    },
     "until": {
       "options": {
         "next_change": "Bis zum nächsten Wechsel",
@@ -22,6 +28,13 @@
         "time": "Bis Uhrzeit",
         "next_day": "Bis zum nächsten Tag",
         "reset": "Bis zurückgesetzt"
+      }
+    },
+    "rule_mode": {
+      "options": {
+        "toggle": "Umschalten",
+        "on": "An",
+        "off": "Aus"
       }
     }
   },
@@ -37,6 +50,9 @@
     },
     "binary_sensor": {
       "overridden": { "name": "Übersteuert" }
+    },
+    "switch": {
+      "rule_active": { "name": "Regel {name}" }
     }
   },
   "device_automation": {
@@ -51,7 +67,8 @@
     },
     "extra_fields": {
       "time_of_day": "Tageszeit",
-      "times_of_day": "Tageszeiten"
+      "times_of_day": "Tageszeiten",
+      "offset": "Versatz in Minuten (negativ: vor der geplanten Zeit)"
     }
   },
   "services": {
@@ -89,6 +106,21 @@
     "refresh_calendars": {
       "name": "Kalender neu lesen",
       "description": "Liest die verknüpften Kalender sofort statt bei der nächsten regulären Aktualisierung."
+    },
+    "toggle_rule": {
+      "name": "Regel umschalten",
+      "description": "Schaltet die Leuchten einer Regel wie ein Taster der Regel: aus, wenn eine davon an ist, sonst an mit den Werten der aktuellen Tageszeit oder den gemerkten Werten.",
+      "fields": {
+        "rule": { "name": "Regel", "description": "Der Name oder der Schlüssel der Regel." },
+        "mode": { "name": "Modus", "description": "Umschalten, oder immer an beziehungsweise aus." }
+      }
+    },
+    "forget": {
+      "name": "Gedächtnis löschen",
+      "description": "Vergisst, was von Hand eingestellt wurde. Die Leuchten gehen wieder mit den Werten der Tageszeit an.",
+      "fields": {
+        "lights": { "name": "Leuchten", "description": "Ohne Leuchten alle Leuchten des Rhythmus." }
+      }
     }
   }
 }

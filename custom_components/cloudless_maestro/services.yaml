@@ -69,3 +69,34 @@ refresh_calendars:
   target:
     entity:
       integration: cloudless_maestro
+
+toggle_rule:
+  target:
+    entity:
+      integration: cloudless_maestro
+  fields:
+    rule:
+      required: true
+      example: bad
+      selector:
+        text:
+    mode:
+      default: toggle
+      selector:
+        select:
+          translation_key: rule_mode
+          options:
+            - toggle
+            - "on"
+            - "off"
+
+forget:
+  target:
+    entity:
+      integration: cloudless_maestro
+  fields:
+    lights:
+      selector:
+        entity:
+          multiple: true
+          domain: light

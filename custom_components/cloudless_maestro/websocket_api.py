@@ -16,9 +16,11 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 import voluptuous as vol
 
-from .const import CONF_TEMPLATE, DOMAIN
+from .check import async_light_check
+from .const import CONF_PALETTE, CONF_TEMPLATE, DOMAIN
+from .frontend import async_set_sidebar, sidebar_shown
 from .helpers import rhythm_for_entity, rhythm_for_entry
-from .model import TEMPLATES, normalize_options, service_time, time_of_day_templates
+from .model import PALETTE_HA, PALETTES, TEMPLATES, normalize_options, service_time, time_of_day_templates
 from .rhythm import Rhythm
 from .schedule import PIN_MODES, Plan
 
@@ -43,6 +45,11 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
         ws_diagnostics,
         ws_templates,
         ws_refresh_calendars,
+        ws_rule_test,
+        ws_rule_toggle,
+        ws_forget,
+        ws_light_check,
+        ws_sidebar,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -118,20 +125,32 @@ def ws_save(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg
         vol.Required("type"): f"{DOMAIN}/rhythm/create",
         vol.Required("title"): vol.All(str, vol.Strip, vol.Length(min=1, max=60)),
         vol.Optional("template", default=TEMPLATES[0]): vol.In(TEMPLATES),
+        vol.Optional("palette", default=PALETTE_HA): vol.In(PALETTES),
+        vol.Optional("options"): dict,
     }
 )
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_create(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
-    """Create a rhythm through the regular config flow."""
+    """Create a rhythm through the regular config flow, from a template or from imported settings."""
+    options = None
+    if msg.get("options") is not None:
+        try:
+            options = normalize_options(msg["options"])
+        except vol.Invalid as err:
+            connection.send_error(msg["id"], ERR_INVALID, str(err))
+            return
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_NAME: msg["title"], CONF_TEMPLATE: msg["template"]}
+        result["flow_id"], {CONF_NAME: msg["title"], CONF_TEMPLATE: msg["template"], CONF_PALETTE: msg["palette"]}
     )
     if result["type"] is not FlowResultType.CREATE_ENTRY:
         connection.send_error(msg["id"], "create_failed", str(result.get("errors")))
         return
-    connection.send_result(msg["id"], {"entry_id": result["result"].entry_id})
+    entry = result["result"]
+    if options is not None:
+        hass.config_entries.async_update_entry(entry, options=options)
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id})
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/rhythm/delete", vol.Required("entry_id"): str})
@@ -331,13 +350,19 @@ def ws_diagnostics(hass: HomeAssistant, connection: websocket_api.ActiveConnecti
         connection.send_result(msg["id"], rhythm.diagnostics())
 
 
-@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/templates", vol.Optional("language"): str})
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/templates",
+        vol.Optional("language"): str,
+        vol.Optional("palette", default=PALETTE_HA): vol.In(PALETTES),
+    }
+)
 @websocket_api.require_admin
 @callback
 def ws_templates(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
     """Return the templates for new times of day."""
     language = (msg.get("language") or hass.config.language or "en").split("-")[0]
-    connection.send_result(msg["id"], time_of_day_templates(language))
+    connection.send_result(msg["id"], time_of_day_templates(language, msg["palette"]))
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/refresh_calendars", vol.Required("entry_id"): str})
@@ -349,3 +374,78 @@ async def ws_refresh_calendars(hass: HomeAssistant, connection: websocket_api.Ac
     if rhythm is not None:
         await rhythm.async_refresh_calendars()
         connection.send_result(msg["id"], rhythm.diagnostics())
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/rule/test",
+        vol.Required("entry_id"): str,
+        vol.Required("rule"): str,
+        vol.Required("time_of_day"): str,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_rule_test(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Apply a rule's row for a time of day now, to see it on the lights."""
+    rhythm = _rhythm(hass, connection, msg)
+    if rhythm is None:
+        return
+    run = rhythm.rules.run_by(msg["rule"])
+    if run is None:
+        connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Rule not found")
+        return
+    await _run(connection, msg, rhythm.rules.async_test(run, msg["time_of_day"]))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/rule/toggle",
+        **TARGET,
+        vol.Required("rule"): str,
+        vol.Optional("mode", default="toggle"): vol.In(("toggle", "on", "off")),
+    }
+)
+@websocket_api.async_response
+async def ws_rule_toggle(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Switch a rule's lights, like a button of the rule would."""
+    rhythm = _rhythm(hass, connection, msg)
+    if rhythm is None:
+        return
+    run = rhythm.rules.run_by(msg["rule"])
+    if run is None:
+        connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Rule not found")
+        return
+    await _run(connection, msg, rhythm.rules.async_toggle(run, msg["mode"]))
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/forget", **TARGET, vol.Optional("lights"): [str]})
+@websocket_api.async_response
+async def ws_forget(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Forget what was set by hand, for some lights or all."""
+    rhythm = _rhythm(hass, connection, msg)
+    if rhythm is not None:
+        await _run(connection, msg, rhythm.rules.async_forget(msg.get("lights")))
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/light_check", vol.Required("entity_id"): str})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_light_check(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Run the light check and return its protocol."""
+    try:
+        result = await async_light_check(hass, msg["entity_id"])
+    except (ValueError, ServiceValidationError) as err:
+        connection.send_error(msg["id"], ERR_INVALID, str(err))
+        return
+    connection.send_result(msg["id"], result)
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/sidebar", vol.Optional("show"): bool})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_sidebar(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Show whether the page is in the sidebar, or put it there or take it out."""
+    if "show" in msg:
+        await async_set_sidebar(hass, msg["show"])
+    connection.send_result(msg["id"], {"sidebar": sidebar_shown(hass)})

@@ -36,6 +36,7 @@ from .const import (
     STORAGE_VERSION,
 )
 from .model import normalize_adjustment, normalize_options
+from .rules import RuleEngine
 from .schedule import (
     PIN_DURATION,
     PIN_MODES,
@@ -99,10 +100,19 @@ class Rhythm:
         self.device_id = device_id
         self.options: dict[str, Any] = normalize_options(entry.options)
         self.store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}")
-        self.data: dict[str, Any] = {"pin": None, "adjustments": {}, "calendar": {}, "last": None, "log": []}
+        self.data: dict[str, Any] = {
+            "pin": None,
+            "adjustments": {},
+            "calendar": {},
+            "last": None,
+            "log": [],
+            "lights": {},
+            "pending": {},
+        }
         self.plan: Plan = self._make_plan()
         self.state: State | None = None
         self.timeline: Timeline | None = None
+        self.rules = RuleEngine(self)
         self._listeners: list[Callable[[], None]] = []
         self._unsubs: list[CALLBACK_TYPE] = []
         self._timer: CALLBACK_TYPE | None = None
@@ -119,6 +129,7 @@ class Rhythm:
                     self.data[key] = stored[key]
         self._prune()
         self.plan = self._make_plan()
+        await self.rules.async_start()
         self._evaluate(REASON_RESTART)
         self._unsubs.append(async_track_time_interval(self.hass, self._tick, TICK))
         self._unsubs.append(
@@ -135,6 +146,7 @@ class Rhythm:
         if self._timer is not None:
             self._timer()
             self._timer = None
+        await self.rules.async_stop()
         await self.store.async_save(self.data)
 
     @callback
@@ -163,6 +175,7 @@ class Rhythm:
         self.options = normalize_options(self.entry.options)
         self._prune()
         self.plan = self._make_plan()
+        self.rules.options_changed()
         self._evaluate(REASON_CONFIG)
         if self.options["calendar_links"] != old_links:
             self.hass.async_create_task(self.async_refresh_calendars(), eager_start=True)
@@ -291,6 +304,7 @@ class Rhythm:
             },
         )
         self.log({"kind": "change", "from": old, "to": new, "reason": reason})
+        self.rules.time_of_day_changed(old, new)
 
     def log(self, item: dict[str, Any]) -> None:
         """Remember a change or decision for the diagnostics."""
@@ -510,6 +524,8 @@ class Rhythm:
                 "pin": pin if state.pinned else None,
             },
             "choosable": self.choosable(),
+            "lights": self.rules.overridden(),
+            "rules": self.rules.describe(),
             "next_day_start": following.isoformat() if following else None,
             "days": [self.describe_day(today), self.describe_day(tomorrow)],
             "segments": [
