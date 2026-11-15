@@ -44,11 +44,11 @@ def local(year: int, month: int, day: int, hour: int, minute: int = 0) -> dateti
 def sample_options(**extra: Any) -> dict[str, Any]:
     """Werktag on weekdays, Wochenende on weekends, all with fixed times."""
     tods = [
-        {"key": "aufstehen", "name": "Aufstehen", "icon": "mdi:weather-sunset-up", "color": "#f2a65a"},
-        {"key": "morgen", "name": "Morgen", "icon": "mdi:coffee-outline", "color": "#f2c94c"},
-        {"key": "mittag", "name": "Mittag"},
-        {"key": "abend", "name": "Abend"},
-        {"key": "einschlafen", "name": "Einschlafen"},
+        {"key": "aufstehen", "name": "Aufstehen", "icon": "mdi:weather-sunset-up", "color": "#ff9800"},
+        {"key": "morgen", "name": "Morgen", "icon": "mdi:coffee-outline", "color": "#ffc107"},
+        {"key": "mittag", "name": "Mittag", "icon": "mdi:white-balance-sunny", "color": "#03a9f4"},
+        {"key": "abend", "name": "Abend", "icon": "mdi:weather-sunset-down", "color": "#e91e63"},
+        {"key": "einschlafen", "name": "Einschlafen", "icon": "mdi:bed-outline", "color": "#673ab7"},
     ]
     werktag = {
         "key": "werktag",

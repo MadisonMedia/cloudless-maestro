@@ -540,8 +540,13 @@ class Rhythm:
         }
 
     def diagnostics(self) -> dict[str, Any]:
-        """Return the log and the calendar status."""
+        """Return the state now, the rules, the log and the calendar status."""
+        snapshot = self.snapshot()
         return {
+            "state": snapshot["state"],
+            "days": snapshot["days"],
+            "rules": snapshot["rules"],
+            "lights": snapshot["lights"],
             "log": list(reversed(self.data["log"])),
             "calendars": {
                 cal: {

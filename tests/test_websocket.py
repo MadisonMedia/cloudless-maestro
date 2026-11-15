@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.typing import WebSocketGenerator
@@ -177,3 +179,69 @@ async def test_templates_and_diagnostics(hass: HomeAssistant, setup_rhythm, hass
     await client.send_json_auto_id({"type": f"{DOMAIN}/diagnostics", "entry_id": rhythm.entry.entry_id})
     log = (await client.receive_json())["result"]["log"]
     assert log[0]["kind"] in ("change", "pin")
+
+
+async def test_rules_are_tested_forgotten_and_the_sidebar_toggles(
+    hass: HomeAssistant, setup_rhythm, hass_ws_client: WebSocketGenerator, freezer: FrozenDateTimeFactory
+) -> None:
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    from .test_rules import BAD, FakeLights, rule_options
+
+    lights = FakeLights(hass, [BAD])
+    client = await hass_ws_client(hass)
+    freezer.move_to(local(2026, 11, 9, 10))
+    rhythm = await setup_rhythm(options=rule_options())
+    async_mock_service(hass, "cloudless_crescendo", "set_on_position")
+
+    async def ask(msg: dict) -> dict:
+        await client.send_json_auto_id(msg)
+        return await client.receive_json()
+
+    res = await ask(
+        {"type": f"{DOMAIN}/rule/test", "entry_id": rhythm.entry.entry_id, "rule": "bad", "time_of_day": "abend"}
+    )
+    assert res["success"]
+    assert lights.pct(BAD) == 60
+    res = await ask(
+        {"type": f"{DOMAIN}/rule/test", "entry_id": rhythm.entry.entry_id, "rule": "nope", "time_of_day": "abend"}
+    )
+    assert not res["success"]
+    lights.by_hand(BAD, "on", brightness=255)
+    await hass.async_block_till_done()
+    assert rhythm.rules.overridden()
+    res = await ask({"type": f"{DOMAIN}/forget", "entry_id": rhythm.entry.entry_id})
+    assert res["success"] and not rhythm.rules.overridden()
+    res = await ask({"type": f"{DOMAIN}/rule/toggle", "entry_id": rhythm.entry.entry_id, "rule": "Bad"})
+    assert res["success"] and hass.states.get(BAD).state == "off"
+    res = await ask({"type": f"{DOMAIN}/diagnostics", "entry_id": rhythm.entry.entry_id})
+    assert res["result"]["rules"][0]["id"] == "bad"
+    assert res["result"]["state"]["key"] == "morgen"
+    # The sidebar flag is stored; the frontend itself is patched away in the tests.
+    with (
+        patch("custom_components.cloudless_maestro.websocket_api.async_set_sidebar") as set_sidebar,
+        patch("custom_components.cloudless_maestro.websocket_api.sidebar_shown", return_value=False),
+    ):
+        res = await ask({"type": f"{DOMAIN}/sidebar", "show": False})
+    assert res["result"] == {"sidebar": False}
+    set_sidebar.assert_awaited_once_with(hass, False)
+
+
+async def test_a_rhythm_can_be_created_from_imported_settings(
+    hass: HomeAssistant, setup_rhythm, hass_ws_client: WebSocketGenerator
+) -> None:
+    client = await hass_ws_client(hass)
+    await setup_rhythm()
+    options = sample_options()
+    options["base"]["name"] = "Ruhe"
+    await client.send_json_auto_id(
+        {"type": f"{DOMAIN}/rhythm/create", "title": "Import", "options": options, "palette": "earth"}
+    )
+    res = await client.receive_json()
+    assert res["success"]
+    entry = hass.config_entries.async_get_entry(res["result"]["entry_id"])
+    assert entry.title == "Import"
+    assert entry.options["base"]["name"] == "Ruhe"
+    await client.send_json_auto_id({"type": f"{DOMAIN}/rhythm/create", "title": "Broken", "options": {"base": {}}})
+    res = await client.receive_json()
+    assert not res["success"]

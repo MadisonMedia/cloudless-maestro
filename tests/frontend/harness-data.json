@@ -1,51 +1,45 @@
 {
  "snapshot": {
-  "entry_id": "01M6Y58QW959S3941MV1ZW6PVK",
+  "entry_id": "01M70R1D603PSM9AVPQ020SFQJ",
   "title": "Wohnung",
-  "device_id": "487078badbb02d4327d2ef81f8f0b14e",
+  "device_id": "a0539669f351a006a9e997f46fd52fdf",
   "now": "2026-11-09T19:10:00+01:00",
   "base": {
    "key": "nacht",
    "name": "Nacht",
-   "color": "#2e3a6b",
-   "transition": 60,
-   "icon": "mdi:weather-night"
+   "icon": "mdi:weather-night",
+   "color": "#37474f"
   },
   "times_of_day": [
    {
     "key": "aufstehen",
     "name": "Aufstehen",
     "icon": "mdi:weather-sunset-up",
-    "color": "#f2a65a",
-    "transition": 60
+    "color": "#ff9800"
    },
    {
     "key": "morgen",
     "name": "Morgen",
     "icon": "mdi:coffee-outline",
-    "color": "#f2c94c",
-    "transition": 60
+    "color": "#ffc107"
    },
    {
     "key": "mittag",
     "name": "Mittag",
-    "color": "#7cc6e8",
-    "transition": 60,
-    "icon": "mdi:white-balance-sunny"
+    "icon": "mdi:white-balance-sunny",
+    "color": "#03a9f4"
    },
    {
     "key": "abend",
     "name": "Abend",
-    "color": "#c46bae",
-    "transition": 60,
-    "icon": "mdi:weather-sunset-down"
+    "icon": "mdi:weather-sunset-down",
+    "color": "#e91e63"
    },
    {
     "key": "einschlafen",
     "name": "Einschlafen",
-    "color": "#6c63b5",
-    "transition": 60,
-    "icon": "mdi:bed-outline"
+    "icon": "mdi:bed-outline",
+    "color": "#673ab7"
    }
   ],
   "models": [
@@ -76,6 +70,45 @@
    "abend",
    "einschlafen",
    "nacht"
+  ],
+  "lights": [
+   {
+    "entity_id": "light.regal",
+    "name": "Regal",
+    "overridden": true,
+    "memory": {
+     "values": {
+      "on": true,
+      "brightness": 80,
+      "kelvin": 3000,
+      "rgb": null
+     },
+     "at": "2026-11-09T19:00:00+01:00"
+    },
+    "on": false
+   }
+  ],
+  "rules": [
+   {
+    "id": "bad",
+    "name": "Bad",
+    "active": true,
+    "on": [
+     "light.bad"
+    ],
+    "pending": {},
+    "locked_until": null,
+    "motion": false
+   },
+   {
+    "id": "wohnzimmer",
+    "name": "Wohnzimmer",
+    "active": true,
+    "on": [],
+    "pending": {},
+    "locked_until": null,
+    "motion": null
+   }
   ],
   "next_day_start": "2026-11-10T06:30:00+01:00",
   "days": [
@@ -259,52 +292,46 @@
  },
  "rhythms": [
   {
-   "entry_id": "01M6Y58QW959S3941MV1ZW6PVK",
+   "entry_id": "01M70R1D603PSM9AVPQ020SFQJ",
    "title": "Wohnung",
-   "device_id": "487078badbb02d4327d2ef81f8f0b14e",
+   "device_id": "a0539669f351a006a9e997f46fd52fdf",
    "options": {
     "base": {
      "key": "nacht",
      "name": "Nacht",
-     "color": "#2e3a6b",
-     "transition": 60,
-     "icon": "mdi:weather-night"
+     "icon": "mdi:weather-night",
+     "color": "#37474f"
     },
     "times_of_day": [
      {
       "key": "aufstehen",
       "name": "Aufstehen",
       "icon": "mdi:weather-sunset-up",
-      "color": "#f2a65a",
-      "transition": 60
+      "color": "#ff9800"
      },
      {
       "key": "morgen",
       "name": "Morgen",
       "icon": "mdi:coffee-outline",
-      "color": "#f2c94c",
-      "transition": 60
+      "color": "#ffc107"
      },
      {
       "key": "mittag",
       "name": "Mittag",
-      "color": "#7cc6e8",
-      "transition": 60,
-      "icon": "mdi:white-balance-sunny"
+      "icon": "mdi:white-balance-sunny",
+      "color": "#03a9f4"
      },
      {
       "key": "abend",
       "name": "Abend",
-      "color": "#c46bae",
-      "transition": 60,
-      "icon": "mdi:weather-sunset-down"
+      "icon": "mdi:weather-sunset-down",
+      "color": "#e91e63"
      },
      {
       "key": "einschlafen",
       "name": "Einschlafen",
-      "color": "#6c63b5",
-      "transition": 60,
-      "icon": "mdi:bed-outline"
+      "icon": "mdi:bed-outline",
+      "color": "#673ab7"
      }
     ],
     "models": [
@@ -415,7 +442,7 @@
      "sat": "wochenende",
      "sun": "wochenende"
     },
-    "location": null,
+    "version": 2,
     "calendar_links": [
      {
       "calendar": "calendar.feiertage",
@@ -423,15 +450,242 @@
       "model": "wochenende"
      }
     ],
-    "version": 1
+    "location": null,
+    "defaults": {
+     "transition": 60,
+     "memory": 15,
+     "after": 3,
+     "warn": true,
+     "warn_seconds": 20,
+     "lock": 30
+    },
+    "rules": [
+     {
+      "id": "bad",
+      "name": "Bad",
+      "lights": [
+       "light.bad"
+      ],
+      "motion": [
+       "binary_sensor.bewegung_bad"
+      ],
+      "buttons": [
+       {
+        "entity": "event.taster_bad",
+        "event": "single"
+       }
+      ],
+      "lux": {
+       "sensor": "sensor.helligkeit_bad",
+       "below": 20.0
+      },
+      "rows": {
+       "nacht": {
+        "react": "on",
+        "brightness": 10,
+        "after": 2,
+        "color": null,
+        "begin": "follow_free",
+        "transition": null,
+        "memory": null,
+        "forget": false,
+        "lux_below": null
+       },
+       "aufstehen": {
+        "react": "on",
+        "brightness": 50,
+        "after": 3,
+        "color": null,
+        "begin": "follow_free",
+        "transition": null,
+        "memory": null,
+        "forget": false,
+        "lux_below": null
+       },
+       "morgen": {
+        "react": "on",
+        "brightness": 100,
+        "after": 3,
+        "color": null,
+        "begin": "follow_free",
+        "transition": null,
+        "memory": null,
+        "forget": false,
+        "lux_below": null
+       },
+       "mittag": {
+        "react": "on",
+        "brightness": 100,
+        "after": 3,
+        "color": null,
+        "begin": "follow_free",
+        "transition": null,
+        "memory": null,
+        "forget": false,
+        "lux_below": null
+       },
+       "abend": {
+        "react": "on",
+        "brightness": 60,
+        "after": 3,
+        "color": null,
+        "begin": "follow_free",
+        "transition": null,
+        "memory": null,
+        "forget": false,
+        "lux_below": null
+       },
+       "einschlafen": {
+        "react": "on",
+        "brightness": 25,
+        "after": 2,
+        "begin": "follow",
+        "color": null,
+        "transition": null,
+        "memory": null,
+        "forget": false,
+        "lux_below": null
+       }
+      },
+      "active": true,
+      "manual": true,
+      "manual_after": "same",
+      "external_on": "apply",
+      "warn": null,
+      "lock": null,
+      "devices": []
+     },
+     {
+      "id": "wohnzimmer",
+      "name": "Wohnzimmer",
+      "lights": [
+       "light.wohnzimmer",
+       "light.regal"
+      ],
+      "motion": [],
+      "rows": {
+       "nacht": {
+        "react": "off_only",
+        "begin": "off",
+        "brightness": null,
+        "color": null,
+        "after": null,
+        "transition": null,
+        "memory": null,
+        "forget": false,
+        "lux_below": null
+       },
+       "aufstehen": {
+        "react": "on",
+        "brightness": 30,
+        "color": {
+         "kelvin": 2700
+        },
+        "after": null,
+        "begin": "follow_free",
+        "transition": null,
+        "memory": null,
+        "forget": false,
+        "lux_below": null
+       },
+       "morgen": {
+        "react": "on",
+        "brightness": 70,
+        "color": {
+         "kelvin": 3500
+        },
+        "after": null,
+        "begin": "follow_free",
+        "transition": null,
+        "memory": null,
+        "forget": false,
+        "lux_below": null
+       },
+       "mittag": {
+        "react": "on",
+        "brightness": 100,
+        "color": {
+         "kelvin": 4000
+        },
+        "begin": "keep",
+        "after": null,
+        "transition": null,
+        "memory": null,
+        "forget": false,
+        "lux_below": null
+       },
+       "abend": {
+        "react": "on",
+        "brightness": 45,
+        "color": {
+         "kelvin": 2700
+        },
+        "begin": "follow",
+        "after": null,
+        "transition": null,
+        "memory": null,
+        "forget": false,
+        "lux_below": null
+       },
+       "einschlafen": {
+        "react": "on",
+        "brightness": 15,
+        "color": {
+         "kelvin": 2200
+        },
+        "begin": "follow",
+        "after": null,
+        "transition": null,
+        "memory": null,
+        "forget": false,
+        "lux_below": null
+       }
+      },
+      "devices": [
+       {
+        "entity": "cover.rollo_wohnzimmer",
+        "values": {
+         "aufstehen": 100.0,
+         "abend": 30.0,
+         "einschlafen": 0.0
+        }
+       },
+       {
+        "entity": "climate.heizung_wohnzimmer",
+        "values": {
+         "aufstehen": 21.0,
+         "mittag": 20.0,
+         "abend": 21.5,
+         "einschlafen": 18.0
+        }
+       },
+       {
+        "entity": "scene.gemuetlich",
+        "values": {
+         "abend": "on"
+        }
+       }
+      ],
+      "active": true,
+      "buttons": [],
+      "manual": true,
+      "lux": null,
+      "manual_after": "same",
+      "external_on": "apply",
+      "warn": null,
+      "lock": null
+     }
+    ]
    },
    "entities": {
+    "overridden": "binary_sensor.wohnung_ubersteuert",
     "choose": "select.wohnung_tageszeit_wahlen",
     "time_of_day": "sensor.wohnung_tageszeit",
     "model": "sensor.wohnung_tagesmodell",
     "next_change": "sensor.wohnung_nachster_wechsel",
     "progress": "sensor.wohnung_fortschritt",
-    "overridden": "binary_sensor.wohnung_ubersteuert"
+    "rule_bad": "switch.wohnung_regel_bad",
+    "rule_wohnzimmer": "switch.wohnung_regel_wohnzimmer"
    }
   }
  ],
@@ -825,6 +1079,154 @@
   }
  ],
  "diagnostics": {
+  "state": {
+   "key": "abend",
+   "since": "2026-11-09T18:30:00+01:00",
+   "until": "2026-11-09T23:00:00+01:00",
+   "next_key": "einschlafen",
+   "today": "2026-11-09",
+   "pinned": false,
+   "pin_end": null,
+   "planned": "abend",
+   "pin": null
+  },
+  "days": [
+   {
+    "day": "2026-11-09",
+    "model": "werktag",
+    "source": "week",
+    "detail": null,
+    "adjusted": true,
+    "adjustment": {
+     "model": null,
+     "times": {
+      "einschlafen": {
+       "kind": "fixed",
+       "time": "23:00",
+       "next_day": false
+      }
+     },
+     "end": null
+    },
+    "order": [
+     "aufstehen",
+     "morgen",
+     "mittag",
+     "abend",
+     "einschlafen"
+    ],
+    "entries": [
+     {
+      "key": "aufstehen",
+      "start": "2026-11-09T06:30:00+01:00"
+     },
+     {
+      "key": "morgen",
+      "start": "2026-11-09T07:00:00+01:00"
+     },
+     {
+      "key": "mittag",
+      "start": "2026-11-09T12:00:00+01:00"
+     },
+     {
+      "key": "abend",
+      "start": "2026-11-09T18:30:00+01:00"
+     },
+     {
+      "key": "einschlafen",
+      "start": "2026-11-09T23:00:00+01:00"
+     }
+    ],
+    "end": "2026-11-09T23:30:00+01:00",
+    "dropped": [],
+    "window": {
+     "start": "2026-11-09T06:30:00+01:00",
+     "end": "2026-11-09T23:30:00+01:00"
+    }
+   },
+   {
+    "day": "2026-11-10",
+    "model": "werktag",
+    "source": "week",
+    "detail": null,
+    "adjusted": false,
+    "adjustment": null,
+    "order": [
+     "aufstehen",
+     "morgen",
+     "mittag",
+     "abend",
+     "einschlafen"
+    ],
+    "entries": [
+     {
+      "key": "aufstehen",
+      "start": "2026-11-10T06:30:00+01:00"
+     },
+     {
+      "key": "morgen",
+      "start": "2026-11-10T07:00:00+01:00"
+     },
+     {
+      "key": "mittag",
+      "start": "2026-11-10T12:00:00+01:00"
+     },
+     {
+      "key": "abend",
+      "start": "2026-11-10T18:30:00+01:00"
+     },
+     {
+      "key": "einschlafen",
+      "start": "2026-11-10T22:30:00+01:00"
+     }
+    ],
+    "end": "2026-11-10T23:30:00+01:00",
+    "dropped": [],
+    "window": {
+     "start": "2026-11-10T06:30:00+01:00",
+     "end": "2026-11-10T23:30:00+01:00"
+    }
+   }
+  ],
+  "rules": [
+   {
+    "id": "bad",
+    "name": "Bad",
+    "active": true,
+    "on": [
+     "light.bad"
+    ],
+    "pending": {},
+    "locked_until": null,
+    "motion": false
+   },
+   {
+    "id": "wohnzimmer",
+    "name": "Wohnzimmer",
+    "active": true,
+    "on": [],
+    "pending": {},
+    "locked_until": null,
+    "motion": null
+   }
+  ],
+  "lights": [
+   {
+    "entity_id": "light.regal",
+    "name": "Regal",
+    "overridden": true,
+    "memory": {
+     "values": {
+      "on": true,
+      "brightness": 80,
+      "kelvin": 3000,
+      "rgb": null
+     },
+     "at": "2026-11-09T19:00:00+01:00"
+    },
+    "on": false
+   }
+  ],
   "log": [
    {
     "at": "2026-11-09T19:10:00+01:00",
@@ -868,92 +1270,258 @@
    "key": "aufstehen",
    "name": "Aufstehen",
    "icon": "mdi:weather-sunset-up",
-   "color": "#f2a65a",
-   "transition": 60
+   "color": "#ff9800"
   },
   {
    "key": "morgen",
    "name": "Morgen",
    "icon": "mdi:coffee-outline",
-   "color": "#f2c94c",
-   "transition": 60
+   "color": "#ffc107"
   },
   {
    "key": "mittag",
    "name": "Mittag",
    "icon": "mdi:white-balance-sunny",
-   "color": "#7cc6e8",
-   "transition": 60
+   "color": "#03a9f4"
   },
   {
    "key": "nachmittag",
    "name": "Nachmittag",
    "icon": "mdi:weather-partly-cloudy",
-   "color": "#6fb98f",
-   "transition": 60
+   "color": "#009688"
   },
   {
    "key": "abend",
    "name": "Abend",
    "icon": "mdi:weather-sunset-down",
-   "color": "#c46bae",
-   "transition": 60
+   "color": "#e91e63"
   },
   {
    "key": "einschlafen",
    "name": "Einschlafen",
    "icon": "mdi:bed-outline",
-   "color": "#6c63b5",
-   "transition": 60
+   "color": "#673ab7"
   }
  ],
+ "states": {
+  "light.bad": {
+   "entity_id": "light.bad",
+   "state": "on",
+   "attributes": {
+    "friendly_name": "Bad",
+    "crescendo": true,
+    "crescendo_api": 1,
+    "position": 60,
+    "brightness": 153,
+    "buttons": [
+     {
+      "name": "Nacht",
+      "position": 25
+     },
+     {
+      "name": "Morgen",
+      "position": 50
+     },
+     {
+      "name": "Hell",
+      "position": 100
+     }
+    ]
+   }
+  },
+  "light.wohnzimmer": {
+   "entity_id": "light.wohnzimmer",
+   "state": "off",
+   "attributes": {
+    "friendly_name": "Wohnzimmer",
+    "supported_color_modes": [
+     "color_temp"
+    ],
+    "entity_id": [
+     "light.stehlampe",
+     "light.decke"
+    ]
+   }
+  },
+  "light.regal": {
+   "entity_id": "light.regal",
+   "state": "off",
+   "attributes": {
+    "friendly_name": "Regal",
+    "supported_color_modes": [
+     "color_temp",
+     "rgb"
+    ]
+   }
+  },
+  "binary_sensor.bewegung_bad": {
+   "entity_id": "binary_sensor.bewegung_bad",
+   "state": "off",
+   "attributes": {
+    "friendly_name": "Bewegung Bad",
+    "device_class": "motion"
+   }
+  },
+  "event.taster_bad": {
+   "entity_id": "event.taster_bad",
+   "state": "2026-11-09T18:00:00+00:00",
+   "attributes": {
+    "friendly_name": "Taster Bad",
+    "event_type": "single",
+    "event_types": [
+     "single",
+     "double"
+    ]
+   }
+  },
+  "sensor.helligkeit_bad": {
+   "entity_id": "sensor.helligkeit_bad",
+   "state": "12",
+   "attributes": {
+    "friendly_name": "Helligkeit Bad",
+    "device_class": "illuminance",
+    "unit_of_measurement": "lx"
+   }
+  },
+  "cover.rollo_wohnzimmer": {
+   "entity_id": "cover.rollo_wohnzimmer",
+   "state": "open",
+   "attributes": {
+    "friendly_name": "Rollo Wohnzimmer",
+    "current_position": 100
+   }
+  },
+  "climate.heizung_wohnzimmer": {
+   "entity_id": "climate.heizung_wohnzimmer",
+   "state": "heat",
+   "attributes": {
+    "friendly_name": "Heizung Wohnzimmer",
+    "temperature": 21
+   }
+  },
+  "scene.gemuetlich": {
+   "entity_id": "scene.gemuetlich",
+   "state": "unknown",
+   "attributes": {
+    "friendly_name": "Gemütlich"
+   }
+  },
+  "binary_sensor.wohnung_ubersteuert": {
+   "entity_id": "binary_sensor.wohnung_ubersteuert",
+   "state": "on",
+   "attributes": {
+    "kinds": [
+     "adjustment"
+    ],
+    "pinned": null,
+    "pin_end": null,
+    "friendly_name": "Wohnung Übersteuert"
+   }
+  },
+  "sensor.wohnung_tageszeit": {
+   "entity_id": "sensor.wohnung_tageszeit",
+   "state": "abend",
+   "attributes": {
+    "options": [
+     "nacht",
+     "aufstehen",
+     "morgen",
+     "mittag",
+     "abend",
+     "einschlafen"
+    ],
+    "name": "Abend",
+    "color": "#e91e63",
+    "since": "2026-11-09T18:30:00+01:00",
+    "until": "2026-11-09T23:00:00+01:00",
+    "next": "einschlafen",
+    "next_name": "Einschlafen",
+    "today": "2026-11-09",
+    "pinned": false,
+    "planned": "abend",
+    "rhythm": "01M70R1D603PSM9AVPQ020SFQJ",
+    "device_class": "enum",
+    "icon": "mdi:weather-sunset-down",
+    "friendly_name": "Wohnung Tageszeit"
+   }
+  },
+  "sensor.wohnung_tagesmodell": {
+   "entity_id": "sensor.wohnung_tagesmodell",
+   "state": "werktag",
+   "attributes": {
+    "options": [
+     "werktag",
+     "wochenende"
+    ],
+    "name": "Werktag",
+    "source": "week",
+    "detail": null,
+    "adjusted": true,
+    "today": "2026-11-09",
+    "device_class": "enum",
+    "friendly_name": "Wohnung Tagesmodell"
+   }
+  },
+  "sensor.wohnung_nachster_wechsel": {
+   "entity_id": "sensor.wohnung_nachster_wechsel",
+   "state": "2026-11-09T22:00:00+00:00",
+   "attributes": {
+    "next": "einschlafen",
+    "next_name": "Einschlafen",
+    "device_class": "timestamp",
+    "friendly_name": "Wohnung Nächster Wechsel"
+   }
+  },
+  "sensor.wohnung_fortschritt": {
+   "entity_id": "sensor.wohnung_fortschritt",
+   "state": "14.8",
+   "attributes": {
+    "unit_of_measurement": "%",
+    "friendly_name": "Wohnung Fortschritt"
+   }
+  }
+ },
  "pinned": {
-  "entry_id": "01M6Y58QW959S3941MV1ZW6PVK",
+  "entry_id": "01M70R1D603PSM9AVPQ020SFQJ",
   "title": "Wohnung",
-  "device_id": "487078badbb02d4327d2ef81f8f0b14e",
+  "device_id": "a0539669f351a006a9e997f46fd52fdf",
   "now": "2026-11-09T19:10:00+01:00",
   "base": {
    "key": "nacht",
    "name": "Nacht",
-   "color": "#2e3a6b",
-   "transition": 60,
-   "icon": "mdi:weather-night"
+   "icon": "mdi:weather-night",
+   "color": "#37474f"
   },
   "times_of_day": [
    {
     "key": "aufstehen",
     "name": "Aufstehen",
     "icon": "mdi:weather-sunset-up",
-    "color": "#f2a65a",
-    "transition": 60
+    "color": "#ff9800"
    },
    {
     "key": "morgen",
     "name": "Morgen",
     "icon": "mdi:coffee-outline",
-    "color": "#f2c94c",
-    "transition": 60
+    "color": "#ffc107"
    },
    {
     "key": "mittag",
     "name": "Mittag",
-    "color": "#7cc6e8",
-    "transition": 60,
-    "icon": "mdi:white-balance-sunny"
+    "icon": "mdi:white-balance-sunny",
+    "color": "#03a9f4"
    },
    {
     "key": "abend",
     "name": "Abend",
-    "color": "#c46bae",
-    "transition": 60,
-    "icon": "mdi:weather-sunset-down"
+    "icon": "mdi:weather-sunset-down",
+    "color": "#e91e63"
    },
    {
     "key": "einschlafen",
     "name": "Einschlafen",
-    "color": "#6c63b5",
-    "transition": 60,
-    "icon": "mdi:bed-outline"
+    "icon": "mdi:bed-outline",
+    "color": "#673ab7"
    }
   ],
   "models": [
@@ -990,6 +1558,45 @@
    "abend",
    "einschlafen",
    "nacht"
+  ],
+  "lights": [
+   {
+    "entity_id": "light.regal",
+    "name": "Regal",
+    "overridden": true,
+    "memory": {
+     "values": {
+      "on": true,
+      "brightness": 80,
+      "kelvin": 3000,
+      "rgb": null
+     },
+     "at": "2026-11-09T19:00:00+01:00"
+    },
+    "on": false
+   }
+  ],
+  "rules": [
+   {
+    "id": "bad",
+    "name": "Bad",
+    "active": true,
+    "on": [
+     "light.bad"
+    ],
+    "pending": {},
+    "locked_until": null,
+    "motion": false
+   },
+   {
+    "id": "wohnzimmer",
+    "name": "Wohnzimmer",
+    "active": true,
+    "on": [],
+    "pending": {},
+    "locked_until": null,
+    "motion": null
+   }
   ],
   "next_day_start": "2026-11-10T06:30:00+01:00",
   "days": [

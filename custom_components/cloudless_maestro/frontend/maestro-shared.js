@@ -115,7 +115,7 @@ export const TIMELINE_STYLE = `
 .tl-now { position: absolute; top: -4px; height: 46px; width: 2px; margin-left: -1px; background: var(--mae-ink); border-radius: 2px; pointer-events: none; }
 .tl-now::before { content: ""; position: absolute; top: -4px; left: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--mae-ink); }
 .tl-tick { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 11.5px; color: var(--mae-muted); font-variant-numeric: tabular-nums; white-space: nowrap; border: 0; background: transparent; padding: 1px 3px; border-radius: 5px; line-height: 1.3; }
-button.tl-tick { color: var(--mae-ink); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+button.tl-tick { color: var(--mae-ink); cursor: pointer; border-bottom: 1px solid var(--mae-line); border-radius: 0; padding-bottom: 0; }
 button.tl-tick:hover, button.tl-tick.sel { background: var(--mae-accent-soft); }
 .tl-tick.adj { color: var(--mae-accent); font-weight: 650; }
 .tl-day { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--mae-muted); opacity: .6; pointer-events: none; }
@@ -154,3 +154,56 @@ export function timelineHTML({ hass, segments, start, end, now, look, boundary =
   const nowMark = nowMs !== null && nowMs >= t0 && nowMs <= t1 ? `<div class="tl-now" style="left:${pos(now)}%"></div>` : "";
   return `<div class="tl"><div class="tl-bar">${bars}</div>${nowMark}${ticks}</div>`;
 }
+
+// -- names and pickers --------------------------------------------------------------------------------
+
+export const friendly = (hass, entityId) => hass?.states?.[entityId]?.attributes?.friendly_name || entityId;
+
+// The room of an entity, through its own area or its device's.
+export function areaOf(hass, entityId) {
+  const entry = hass?.entities?.[entityId];
+  const areaId = entry?.area_id || (entry?.device_id ? hass?.devices?.[entry.device_id]?.area_id : null);
+  return areaId ? hass?.areas?.[areaId]?.name || "" : "";
+}
+
+// Home Assistant loads its icon picker on demand. Asking a card editor for it brings it in.
+export async function loadIconPicker() {
+  if (customElements.get("ha-icon-picker")) return true;
+  try {
+    const helpers = await window.loadCardHelpers?.();
+    const card = helpers?.createCardElement({ type: "button", entity: "light.none" });
+    await card?.constructor?.getConfigElement?.();
+  } catch {
+    // Without the helpers the picker arrives whenever Home Assistant loads it for something else.
+  }
+  await customElements.whenDefined("ha-icon-picker");
+  return true;
+}
+
+// The two palettes of the templates: Home Assistant's own colors and deep earth tones.
+export const PALETTES = {
+  ha: ["#ff9800", "#ffc107", "#03a9f4", "#009688", "#e91e63", "#673ab7", "#37474f", "#4caf50", "#00bcd4", "#f44336", "#9c27b0", "#607d8b"],
+  earth: ["#c2410c", "#b45309", "#0f766e", "#4d7c0f", "#86198f", "#3730a3", "#1f2937", "#9a3412", "#0e7490", "#b91c1c", "#6d28d9", "#374151"],
+};
+export const paletteOf = (options) => (PALETTES.earth.includes(String(options?.base?.color || "").toLowerCase()) ? "earth" : "ha");
+
+// A hue on the color wheel as rgb, fully saturated, for the color row of a rule.
+export function hueRgb(h) {
+  const f = (n) => {
+    const k = (n + h / 60) % 6;
+    return Math.round(255 * (1 - Math.max(0, Math.min(k, 4 - k, 1))));
+  };
+  return [f(5), f(3), f(1)];
+}
+export function rgbHue([r, g, b]) {
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b),
+    d = max - min;
+  if (!d) return 0;
+  let h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return Math.round(h * 60) % 360;
+}
+export const kelvinColor = (k) => {
+  const x = Math.max(0, Math.min(1, (k - 2000) / 4500));
+  return `color-mix(in srgb, #ff9d3c ${Math.round((1 - x) * 100)}%, #bcd8ff)`;
+};

@@ -39,7 +39,13 @@ button { cursor: pointer; }
 .name { font-size: 21px; font-weight: 650; line-height: 1.2; overflow-wrap: anywhere; }
 .small .name, .compact .name { font-size: 17px; }
 .when { font-size: 13.5px; color: var(--mae-muted); font-variant-numeric: tabular-nums; }
-.chip { display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--mae-accent-soft); color: var(--mae-ink); }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 500; border: 1px solid var(--mae-line); color: var(--mae-muted); }
+.lights { display: grid; gap: 2px; }
+.light { display: flex; align-items: center; gap: 8px; font-size: 13.5px; padding: 2px 0; }
+.light .lname { font-weight: 500; }
+.light .lval { color: var(--mae-muted); font-variant-numeric: tabular-nums; flex: 1; }
+.dotlight { width: 8px; height: 8px; border-radius: 50%; background: var(--mae-line); flex: none; }
+.dotlight.on { background: var(--mae-accent); }
 .rowlabel { font-size: 12.5px; color: var(--mae-muted); margin-bottom: 4px; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .btn { border: 1px solid var(--mae-line); background: transparent; border-radius: 10px; min-height: 36px; padding: 5px 12px; font-weight: 550; font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }
@@ -294,8 +300,25 @@ class MaestroCard extends HTMLElement {
         <button class="btn${this._sheet === "day" ? " on" : ""}" data-act="open" data-sheet="day">${icon("mdi:calendar-edit", 18)}${esc(t("Adjust day", "Tag anpassen"))}</button>
         ${st.pinned ? `<button class="btn" data-act="resume">${icon("mdi:calendar-sync", 18)}${esc(t("Back to plan", "Zurück zum Plan"))}</button>` : ""}
       </div>
+      ${this._lightsHTML()}
       ${error}${sheet}
     </ha-card>`;
+  }
+
+  // Lights somebody changed by hand: what Maestro remembers for them, and a way to forget it.
+  _lightsHTML() {
+    const t = this._t;
+    const lights = (this._snap.lights || []).filter((l) => l.overridden || l.memory);
+    if (!lights.length) return "";
+    const rows = lights
+      .map((l) => {
+        const v = l.memory?.values || {};
+        const what = v.on ? `${Math.round(v.brightness || 0)} %${v.kelvin ? ` · ${v.kelvin} K` : ""}` : "";
+        return `<div class="light"><span class="dotlight${l.on ? " on" : ""}"></span><span class="lname">${esc(l.name)}</span><span class="lval">${esc(what)}</span>
+          <button class="x" data-act="forget" data-id="${esc(l.entity_id)}" title="${esc(t("Forget", "Vergessen"))}" aria-label="${esc(t("Forget", "Vergessen"))}">${icon("mdi:eraser-variant", 18)}</button></div>`;
+      })
+      .join("");
+    return `<div class="lights"><div class="rowlabel">${esc(t("Set by hand", "Von Hand eingestellt"))}</div>${rows}</div>`;
   }
 
   _dayLabel(day) {
@@ -556,6 +579,7 @@ class MaestroCard extends HTMLElement {
       this._render();
     } else if (act === "close") this._closeSheet();
     else if (act === "resume") this._ws({ type: "cloudless_maestro/resume" });
+    else if (act === "forget") this._ws({ type: "cloudless_maestro/forget", lights: [el.dataset.id] });
     else if (act === "pin-key") {
       this._pin.key = el.dataset.key;
       this._pin.mode = null;

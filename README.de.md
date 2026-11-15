@@ -1,14 +1,16 @@
 # Cloudless Maestro
 
-Eine Home-Assistant-Integration, die festlegt, welche Tageszeit gerade gilt. Statt vieler zeitgesteuerter Automationen gibt es einen Tagesplan: frei benannte Tageszeiten, Tagesmodelle wie Werktag oder Wochenende, einen Wochenplan und Ausnahmen für einzelne Tage. Ändert sich dein Rhythmus, änderst du nur den Plan.
+Eine Home-Assistant-Integration, die festlegt, welche Tageszeit gerade gilt, und was deine Leuchten darin tun. Statt vieler zeitgesteuerter Automationen gibt es einen Tagesplan: frei benannte Tageszeiten, Tagesmodelle wie Werktag oder Wochenende, einen Wochenplan und Ausnahmen für einzelne Tage. Regeln legen pro Tageszeit fest, wie Bewegungsmelder, Taster und der Schalter an der Wand reagieren. Ändert sich dein Rhythmus, änderst du nur den Plan.
 
 [English version](README.md)
 
-![Die Maestro-Karte in hell und dunkel: Zeitleiste von heute und morgen, Festsetzen mit Schutz für den Wecker, kompakte Variante](https://raw.githubusercontent.com/MadisonMedia/cloudless-maestro/main/docs/card-de.png)
+![Die Maestro-Karte in hell und dunkel: Zeitleiste von heute und morgen, Festsetzen, von Hand eingestellte Leuchten](https://raw.githubusercontent.com/MadisonMedia/cloudless-maestro/main/docs/card-de.png)
 
-![Ein Tagesmodell einrichten: Zeiten ziehen, Sonnenzeiten mit Grenzen, Vorschau für Sommer und Winter](https://raw.githubusercontent.com/MadisonMedia/cloudless-maestro/main/docs/setup-de.png)
+![Tageszeiten und Tagesmodelle einrichten](https://raw.githubusercontent.com/MadisonMedia/cloudless-maestro/main/docs/setup-de.png)
 
-> **Beta.** Diese Version enthält den ersten Teil von Maestro, die Tageszeiten. Licht-Regeln mit Bewegungsmeldern, Gedächtnis für manuelle Einstellungen und Verläufe wie ein Lichtwecker folgen in den nächsten Versionen.
+![Eine Regel: Leuchten, Auslöser, eine Zeile pro Tageszeit, Geräte beim Beginn](https://raw.githubusercontent.com/MadisonMedia/cloudless-maestro/main/docs/rules-de.png)
+
+> **Beta.** Tageszeiten und Regeln sind drin. Verläufe über eine ganze Tageszeit, etwa ein Lichtwecker, folgen in den nächsten Versionen.
 
 ## Was du bekommst
 
@@ -16,10 +18,12 @@ Eine Home-Assistant-Integration, die festlegt, welche Tageszeit gerade gilt. Sta
 - **Eigene Tageszeiten.** Jede Tageszeit hat Name, Symbol und Farbe. Ihr Schlüssel bleibt beim Umbenennen gleich, damit Automationen weiterlaufen.
 - **Tagesmodelle.** Startzeiten fest oder nach Sonnenstand, mit Versatz und den Grenzen *frühestens* und *spätestens*. Zeiten dürfen nach Mitternacht liegen, etwa bei einer Party bis 06:00.
 - **Wochenplan und Kalender.** Jeder Wochentag bekommt ein Modell. Ein Kalender aus Home Assistant kann einzelne Daten übersteuern, zum Beispiel an Feiertagen, bei Wechselschicht oder im Urlaub.
-- **Festsetzen.** Jetzt eine Tageszeit setzen, vorher oder später im Tag, bis zum nächsten Wechsel, für eine Dauer, bis zu einer Uhrzeit, bis zum nächsten Tag oder bis du zurücksetzt. Dauer und Uhrzeit enden spätestens, wenn der nächste Tag beginnt, damit dein Wecker nie unbemerkt ausfällt.
-- **Tag anpassen.** Für ein einzelnes Datum ein anderes Modell oder andere Zeiten, auch im Voraus: „heute Einschlafen erst 23:30“.
-- **Für Automationen.** Jeder Rhythmus ist ein Gerät mit Sensoren, Triggern, Bedingungen, Aktionen und einem Ereignis bei jedem Wechsel.
-- **Eine Karte und eine Einstellungsseite**, ohne YAML. Deutsch und Englisch.
+- **Regeln.** Leuchten mit Auslösern und einer Zeile pro Tageszeit: wie hell, welche Farbe, wann wieder aus, und was mit eingeschalteten Leuchten passiert, wenn eine Tageszeit beginnt. Bewegungs- oder Präsenzmelder, Taster und Einschalten von Hand. Ein Helligkeitssensor kann das Einschalten auf dunkle Stunden begrenzen.
+- **Gedächtnis.** Ändert jemand eine Leuchte von Hand, merkt sich Maestro das: Innerhalb der Merkdauer geht sie wieder so an, danach wieder mit der Zeile.
+- **Geräte beim Beginn einer Tageszeit.** Ein Rollo bekommt seine Position, ein Thermostat seine Temperatur, ein Lautsprecher seine Lautstärke; eine Szene oder ein Skript startet.
+- **Festsetzen und anpassen.** Jetzt eine Tageszeit setzen bis zu einem gewählten Ende, oder einem einzelnen Datum andere Zeiten geben, auch im Voraus.
+- **Für Automationen.** Jeder Rhythmus ist ein Gerät mit Sensoren, einem Schalter pro Regel, Triggern mit Versatz, Bedingungen, Aktionen und einem Ereignis bei jedem Wechsel.
+- **Eine Karte und eine Einstellungsseite**, ohne YAML. Deutsch und Englisch. Mit [Cloudless Crescendo](https://github.com/MadisonMedia/cloudless-crescendo) steuert Maestro Crescendo-Objekte über deren eigene Aktionen.
 
 ## Installieren
 
@@ -42,7 +46,42 @@ Benötigt Home Assistant 2026.2 oder neuer.
 
 [![Home Assistant öffnen und die Einrichtung von Maestro starten.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=cloudless_maestro)
 
-Gehe zu **Einstellungen → Geräte & Dienste → Integration hinzufügen → Cloudless Maestro**, gib einen Namen ein und wähle, womit du beginnst: einem typischen Tag mit Aufstehen, Morgen, Mittag, Nachmittag, Abend und Einschlafen, oder einer einzelnen Tageszeit zum Selbstaufbauen. Danach erscheint **Maestro** in der Seitenleiste. Dort stellst du alles ein und legst weitere Rhythmen an.
+Gehe zu **Einstellungen → Geräte & Dienste → Integration hinzufügen → Cloudless Maestro**, gib einen Namen ein, wähle, womit du beginnst (ein typischer Tag oder eine einzelne Tageszeit zum Selbstaufbauen), und welche Farben dir gefallen: die von Home Assistant oder Erdtöne. Danach erscheint **Maestro** in der Seitenleiste.
+
+## Die Einstellungsseite
+
+Wähle den Rhythmus im Kopf, oder **Neuer Rhythmus …**. Die Sprungleiste links führt zu den Abschnitten; Erklärungen stehen hinter dem kleinen **i** neben einer Überschrift.
+
+1. **Tageszeiten:** Name, Schlüssel und unter **Mehr** Symbol und Farbe. Neue legst du mit einem Namen oder aus einer Vorlage an. Eine neue Tageszeit übernimmt in den Regeln die Werte der vorherigen.
+2. **Tagesmodelle:** Ziehe die Markierungen in der Zeitleiste oder tippe die Zeiten ein. **Sonne** folgt Sonnenaufgang, Sonnenuntergang oder Dämmerung mit Versatz, **Grenzen** setzt frühestens und spätestens. Die Tabelle zeigt das Ergebnis für das Vorschau-Datum, Hochsommer und Hochwinter. Das Vorschau-Datum steht in der Leiste unten.
+3. **Wochenplan:** ein Modell pro Wochentag, mit einem kleinen Streifen, der den Tag zeigt. Darunter die Kalender.
+4. **Regeln:** siehe nächster Abschnitt.
+5. **Allgemein:** Standort, die Standardwerte der Regeln, Beispiele für Automationen und der Eintrag in der Seitenleiste.
+
+**Rückgängig** nimmt die letzte Änderung zurück. **Exportieren** speichert den Rhythmus als Datei; **Importieren** legt daraus einen neuen Rhythmus an oder ersetzt den gewählten.
+
+## Regeln
+
+Eine Regel hat **Leuchten** (auch Lichtgruppen und Crescendo-Objekte), **Auslöser** und eine Zeile pro Tageszeit.
+
+| Auslöser | Was passiert |
+| --- | --- |
+| Bewegung oder Präsenz | Schaltet mit der Zeile ein. Sind alle Melder frei, gehen die Leuchten nach der Zeit in der Zeile aus, vorher kurz auf die Hälfte gedimmt als Vorwarnung. Bewegung während der Vorwarnung holt sie zurück. |
+| Taster | Eine Ereignis-Entität, etwa eine Wandfernbedienung, mit der Art des Drucks. Schaltet um: aus, wenn eine Leuchte an ist, sonst an mit der Zeile. Ohne Bewegungsmelder zählt die Zeit der Zeile ab dem Drücken. |
+| Von Hand | Eine Leuchte, die ohne Maestro angeht, bekommt die Werte der Tageszeit oder ihre gemerkten Werte. Geht sie *mit* einem Wert an, etwa „Licht auf 80 %“, behält sie ihn. |
+| Nur wenn dunkel | Ein Helligkeitssensor mit Schwelle. Er begrenzt das Einschalten, schaltet aber nie aus. |
+
+Jede **Zeile** hat eine Reaktion (einschalten, nur ausschalten, nicht reagieren), Helligkeit, Farbe, die Zeit bis zum Ausschalten und das Verhalten **beim Beginn** der Tageszeit für eingeschaltete Leuchten: der neuen Zeile folgen, folgen außer übersteuert, beibehalten oder ausschalten. Unter **Mehr**: Übergang, Merkdauer, Vergessen beim Beginn, eine Schwelle für diese Zeile, das Übernehmen einer anderen Zeile und das Übernehmen für alle Tageszeiten. **Testen** wendet eine Zeile sofort an.
+
+**Gedächtnis.** Ändert jemand eine Leuchte von Hand, ist sie übersteuert: Sie behält ihre Werte und bekommt sie wieder, wenn sie innerhalb der Merkdauer erneut eingeschaltet wird. Danach gilt wieder die Zeile. „Folgen“ beim Beginn einer Tageszeit beendet eine Übersteuerung; „Folgen, außer übersteuert“ lässt solche Leuchten in Ruhe. Karte und Diagnose zeigen die von Hand eingestellten Leuchten mit **Vergessen**.
+
+**Leuchten in mehreren Regeln.** Der neueste Befehl gewinnt. Eine Leuchte, die eine andere Regel eingeschaltet hat, zählt für eine Bewegungsregel wie von Hand eingeschaltet; unter **Mehr zur Regel** steht, ob solche Leuchten nach derselben Zeit, nach einer eigenen Zeit oder gar nicht ausgehen. Eine von Hand ausgeschaltete Leuchte bleibt aus; Bewegung wird für die Sperrzeit ignoriert, damit sie beim Hinausgehen nicht gleich wieder angeht.
+
+**Geräte und Aktionen beim Beginn.** Pro Regel bekommen Geräte einmal ihren Wert, wenn eine Tageszeit beginnt: Rollos, Thermostate, Lautsprecher, Lüfter, Schalter, Zahlen sowie Szenen oder Skripte. Leere Felder tun nichts.
+
+**Crescendo-Objekte** bekommen eine Position von 1 bis 100; die Buttons des Objekts dienen als Vorgaben, und ein leerer Übergang heißt Tempo des Objekts. Maestro hält die Einschaltposition des Objekts aktuell, damit es nie mit einem alten Wert aufblitzt.
+
+Jede Regel hat einen **Schalter** in Home Assistant. Aus heißt pausiert: Die Regel schaltet nichts und folgt keinem Wechsel.
 
 ## So wird gerechnet
 
@@ -63,7 +102,7 @@ Gehe zu **Einstellungen → Geräte & Dienste → Integration hinzufügen → Cl
 | Bis zum nächsten Tag | Bis die erste Tageszeit des nächsten Tages beginnt |
 | Bis zurückgesetzt | Ohne Ende. Die Karte zeigt vorher, welcher Wechsel ausfällt. |
 
-Eine neue Festsetzung ersetzt die vorige. **Zurück zum Plan** hebt sie auf. Eine Tagesanpassung speichert nur das Abweichende: Änderst du später das Tagesmodell, gilt das an diesem Tag für alle anderen Zeiten. Festsetzungen und Tagesanpassungen überstehen einen Neustart. Hat sich die Tageszeit während eines Neustarts geändert, gibt es genau einen Wechsel.
+Eine neue Festsetzung ersetzt die vorige. **Zurück zum Plan** hebt sie auf. Eine Tagesanpassung speichert nur das Abweichende: Änderst du später das Tagesmodell, gilt das an diesem Tag für alle anderen Zeiten. Festsetzungen, Tagesanpassungen und das Gedächtnis der Leuchten überstehen einen Neustart. Hat sich die Tageszeit während eines Neustarts geändert, gibt es genau einen Wechsel.
 
 ## In Automationen
 
@@ -77,8 +116,9 @@ Jeder Rhythmus ist ein Gerät mit diesen Entitäten:
 | Nächster Wechsel | Zeitpunkt des nächsten Wechsels |
 | Fortschritt | Wie weit die aktuelle Tageszeit vergangen ist, in Prozent |
 | Übersteuert | An bei einer Festsetzung oder einer Tagesanpassung für heute |
+| Regel … | Ein Schalter pro Regel; aus pausiert sie |
 
-Im Automationseditor bietet das Gerät die Trigger **Eine Tageszeit beginnt**, **Eine Tageszeit endet** und **Die Tageszeit wechselt** sowie die Bedingungen **Die Tageszeit ist eine von** und **Der Plan ist übersteuert**. Bei jedem Wechsel feuert außerdem das Ereignis `cloudless_maestro_changed` mit `from`, `to` und dem Grund.
+Im Automationseditor bietet das Gerät die Trigger **Eine Tageszeit beginnt** und **Eine Tageszeit endet**, jeweils mit einem Versatz in Minuten (negativ: vor der geplanten Zeit, zum Beispiel die Heizung 15 Minuten vor dem Aufstehen), **Die Tageszeit wechselt** sowie die Bedingungen **Die Tageszeit ist eine von** und **Der Plan ist übersteuert**. Bei jedem Wechsel feuert außerdem das Ereignis `cloudless_maestro_changed` mit `from`, `to` und dem Grund.
 
 | Aktion | Zweck |
 | --- | --- |
@@ -86,22 +126,26 @@ Im Automationseditor bietet das Gerät die Trigger **Eine Tageszeit beginnt**, *
 | `cloudless_maestro.resume` | Zurück zum Plan |
 | `cloudless_maestro.adjust_day` | Ein Datum anpassen: anderes Modell, andere Startzeiten, anderes Tagesende |
 | `cloudless_maestro.clear_day` | Eine Tagesanpassung entfernen |
+| `cloudless_maestro.toggle_rule` | Die Leuchten einer Regel schalten, wie ein Taster der Regel |
+| `cloudless_maestro.forget` | Das von Hand Eingestellte vergessen |
 | `cloudless_maestro.refresh_calendars` | Die verknüpften Kalender sofort neu lesen |
 
 ```yaml
-# Heute später ins Bett
-action: cloudless_maestro.adjust_day
+# Ein Wandschalter in einer Automation schaltet die Regel fürs Bad um
+action: cloudless_maestro.toggle_rule
 target:
   entity_id: sensor.wohnung_tageszeit
 data:
-  times:
-    einschlafen: "23:30"
-  end: "00:30+1"
+  rule: bad
 ```
+
+## Diagnose
+
+Der Reiter **Diagnose** zeigt die Tageszeit jetzt, den nächsten Wechsel, die Regeln mit ihren Leuchten und Zeiten, die von Hand eingestellten Leuchten und ein Protokoll der Wechsel und Entscheidungen, damit sich „Warum hat die Leuchte das getan?“ beantworten lässt. Die **Leuchten-Prüfung** schaltet eine Leuchte ein, blendet sie über und schaltet sie aus, und protokolliert jede Rückmeldung: wie schnell, wie genau und wie oft sie während einer Überblendung meldet. Nimm sie für eine Leuchte, die sich in einer Regel seltsam verhält.
 
 ## Die Karte
 
-Bearbeite ein Dashboard, füge eine Karte hinzu und wähle **Maestro**. Die volle Variante zeigt die aktuelle Tageszeit, den Tag als Zeitleiste und auf Wunsch auch morgen. Tippe auf eine kommende Uhrzeit, um diesen Wechsel nur an diesem Datum zu verschieben. Die kompakte Variante zeigt nur Tageszeit und Festsetzen.
+Bearbeite ein Dashboard, füge eine Karte hinzu und wähle **Maestro**. Die volle Variante zeigt die aktuelle Tageszeit, den Tag als Zeitleiste, auf Wunsch auch morgen, und die von Hand eingestellten Leuchten. Tippe auf eine kommende Uhrzeit, um diesen Wechsel nur an diesem Datum zu verschieben. Die kompakte Variante zeigt nur Tageszeit und Festsetzen.
 
 ## Entwicklung
 
@@ -111,7 +155,7 @@ pytest -q
 ruff check .
 ```
 
-`tests/frontend/harness.html` führt die echte Karte und Einstellungsseite gegen ein simuliertes Home Assistant aus, mit Daten aus dem echten Backend. Liefere das Hauptverzeichnis des Repositorys mit einem beliebigen lokalen Webserver aus und öffne diese Datei. Mit `MAESTRO_WRITE_HARNESS=1 pytest tests/test_harness_data.py` erneuerst du die Daten.
+`tests/frontend/harness.html` führt die echte Karte und Einstellungsseite gegen ein simuliertes Home Assistant aus, mit Daten aus dem echten Backend. Liefere das Hauptverzeichnis des Repositorys mit einem beliebigen lokalen Webserver aus und öffne diese Datei. Mit `MAESTRO_WRITE_HARNESS=1 pytest tests/test_harness_data.py` erneuerst du die Daten, mit `MAESTRO_HARNESS_LANG=en` auf Englisch.
 
 ## Lizenz
 

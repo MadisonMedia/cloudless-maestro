@@ -50,7 +50,11 @@ const hass = {
   states: {
     "sensor.wohnung_tageszeit": { entity_id: "sensor.wohnung_tageszeit", state: snapshot.state.key, attributes: { rhythm: snapshot.entry_id, friendly_name: "Wohnung Tageszeit" } },
     "calendar.feiertage": { entity_id: "calendar.feiertage", state: "off", attributes: { friendly_name: "Feiertage" } },
+    ...(data.states || {}),
   },
+  areas: { bad: { area_id: "bad", name: "Bad" }, wohnzimmer: { area_id: "wohnzimmer", name: "Wohnzimmer" } },
+  entities: { "light.bad": { area_id: "bad" }, "binary_sensor.bewegung_bad": { area_id: "bad" }, "light.wohnzimmer": { area_id: "wohnzimmer" }, "light.regal": { area_id: "wohnzimmer" } },
+  devices: {},
   connection: {
     subscribeMessage: async (cb, msg) => {
       calls.push(msg);
@@ -67,6 +71,10 @@ const hass = {
       case "cloudless_maestro/preview": return m.dates.length === 1 ? [data.preview[0]] : data.preview;
       case "cloudless_maestro/month": return data.month;
       case "cloudless_maestro/diagnostics": return data.diagnostics;
+      case "cloudless_maestro/sidebar": return { sidebar: true };
+      case "cloudless_maestro/rule/test": return null;
+      case "cloudless_maestro/forget": return null;
+      case "cloudless_maestro/light_check": return { entity_id: m.entity_id, dimmable: true, crescendo: false, log: [{ t: 0, kind: "command", text: "on_30" }, { t: 0.41, kind: "report", values: { on: true, brightness: 29.8 } }, { t: 3, kind: "command", text: "fade_80" }, { t: 7.5, kind: "report", values: { on: true, brightness: 55 } }, { t: 13.4, kind: "report", values: { on: true, brightness: 80 } }, { t: 18, kind: "command", text: "off" }, { t: 18.3, kind: "report", values: { on: false } }], summary: { answered: true, delay: 0.41, rounding: -0.2, intermediate: 1, fade_done_after: 10.4, off_delay: 0.3, reports: 4 } };
       case "cloudless_maestro/rhythm/save": return { options: m.options };
       case "cloudless_maestro/pin":
         snapshot = data.pinned;

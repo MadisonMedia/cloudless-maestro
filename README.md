@@ -1,14 +1,16 @@
 # Cloudless Maestro
 
-A Home Assistant integration that decides which time of day applies right now. Instead of many timed automations there is one daily schedule: freely named times of day, day models such as workday or weekend, a week plan and exceptions for single days. When your rhythm changes, you change only the schedule.
+A Home Assistant integration that decides which time of day applies right now, and what your lights do in it. Instead of many timed automations there is one daily schedule: freely named times of day, day models such as workday or weekend, a week plan and exceptions for single days. Rules say, per time of day, how motion sensors, buttons and a switch at the wall behave. When your rhythm changes, you change only the schedule.
 
 [Deutsche Version](README.de.md)
 
-![The Maestro card in light and dark: today's and tomorrow's timeline, pinning with wake-up protection, compact variant](https://raw.githubusercontent.com/MadisonMedia/cloudless-maestro/main/docs/card-en.png)
+![The Maestro card in light and dark: today's and tomorrow's timeline, pinning, lights set by hand](https://raw.githubusercontent.com/MadisonMedia/cloudless-maestro/main/docs/card-en.png)
 
-![Setting up a day model: drag times, sun times with bounds, preview for summer and winter](https://raw.githubusercontent.com/MadisonMedia/cloudless-maestro/main/docs/setup-en.png)
+![Setting up times of day and day models](https://raw.githubusercontent.com/MadisonMedia/cloudless-maestro/main/docs/setup-en.png)
 
-> **Beta.** This version contains the first part of Maestro, the times of day. Light rules with motion sensors, memory for manual settings and fades such as a wake-up light follow in the next versions.
+![A rule: lights, triggers, one row per time of day, devices at the start](https://raw.githubusercontent.com/MadisonMedia/cloudless-maestro/main/docs/rules-en.png)
+
+> **Beta.** Times of day and rules are in. Fades over a whole time of day, such as a wake-up light, follow in the next versions.
 
 ## What you get
 
@@ -16,10 +18,12 @@ A Home Assistant integration that decides which time of day applies right now. I
 - **Your own times of day.** Each has a name, an icon and a color. Its key stays the same when you rename it, so automations keep working.
 - **Day models.** Start times fixed or following the sun, with an offset and the bounds *earliest* and *latest*. Times may lie after midnight, for example a party until 06:00.
 - **Week plan and calendar.** Every weekday gets a model. A calendar from Home Assistant can override single dates, for example on public holidays, for shift work or on holiday.
-- **Pin.** Set a time of day now, earlier or later in the day, until the next change, for a duration, until a time, until the next day or until you reset it. A duration or a time ends when the next day begins at the latest, so your wake-up is never skipped unnoticed.
-- **Adjust a day.** Another model or other times for a single date, also in advance: “bedtime at 23:30 tonight”.
-- **For automations.** Every rhythm is a device with sensors, triggers, conditions, actions and an event at every change.
-- **A card and a settings page**, no YAML needed. English and German.
+- **Rules.** Lights with triggers and one row of values per time of day: how bright, which color, when off again, and what happens to lights that are on when a time of day begins. Motion or presence sensors, buttons and switching on by hand. A light sensor can limit switching on to when it is dark.
+- **Memory.** When somebody changes a light by hand, Maestro remembers it: within the memory time the light comes back as set, afterwards with the row again.
+- **Devices at the start of a time of day.** A blind gets its position, a thermostat its temperature, a speaker its volume; a scene or script starts.
+- **Pin and adjust.** Set a time of day now until a chosen end, or give a single date other times, also in advance.
+- **For automations.** Every rhythm is a device with sensors, a switch per rule, triggers with an offset, conditions, actions and an event at every change.
+- **A card and a settings page**, no YAML needed. English and German. With [Cloudless Crescendo](https://github.com/MadisonMedia/cloudless-crescendo), Maestro drives Crescendo objects through their own actions.
 
 ## Install
 
@@ -42,7 +46,42 @@ Requires Home Assistant 2026.2 or newer.
 
 [![Open Home Assistant and start setting up Maestro.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=cloudless_maestro)
 
-Go to **Settings → Devices & services → Add integration → Cloudless Maestro**, enter a name and choose how to start: a typical day with wake up, morning, midday, afternoon, evening and bedtime, or a single time of day to build your own. **Maestro** then appears in the sidebar. Set everything up there and add more rhythms.
+Go to **Settings → Devices & services → Add integration → Cloudless Maestro**, enter a name, choose how to start (a typical day, or a single time of day to build your own) and which colors you like: Home Assistant's own or earth tones. **Maestro** then appears in the sidebar.
+
+## The settings page
+
+Choose the rhythm in the header, or **New rhythm …**. The jump bar on the left leads to the sections; explanations sit behind the small **i** next to a heading.
+
+1. **Times of day:** name, key and, under **More**, icon and color. Add one by name or from a template. A new time of day takes the rule values of the one before it.
+2. **Day models:** drag the marks on the timeline, or type the times. **Sun** follows sunrise, sunset or dusk with an offset, and **Bounds** sets earliest and latest. The table shows the result for the preview date, midsummer and midwinter. The bar at the bottom holds the preview date.
+3. **Week plan:** a model per weekday, with a small strip showing the day. Below it the calendars.
+4. **Rules:** see the next section.
+5. **General:** location, the defaults for the rules, examples for automations, and the entry in the sidebar.
+
+**Undo** takes back the last change. **Export** saves the rhythm as a file; **Import** creates a new rhythm from one or replaces the chosen one.
+
+## Rules
+
+A rule has **lights** (also light groups and Crescendo objects), **triggers** and one row per time of day.
+
+| Trigger | What happens |
+| --- | --- |
+| Motion or presence | Switches on with the row. When all sensors are clear, the lights go off after the time in the row, dimmed to half for a moment as a warning first. Motion during the warning brings them back. |
+| Button | An event entity such as a wall remote, with the kind of press. Toggles: off when a light is on, otherwise on with the row. Without motion, the row's time counts from the press. |
+| By hand | A light that goes on without Maestro gets the values of the time of day, or its remembered values. A light that goes on *with* a value, such as “light to 80 %”, keeps that value. |
+| Only when dark | A light sensor with a threshold. It limits switching on, never switches off. |
+
+Each **row** has a reaction (switch on, only switch off, do nothing), brightness, color, the time until off, and what happens **at the start** of the time of day to lights that are on: follow the new row, follow unless overridden, keep, or switch off. Under **More**: transition, memory time, forgetting at the start, a threshold for this row, taking over another row, and using the row for all times of day. **Test** applies a row now.
+
+**Memory.** When somebody changes a light by hand, that light is overridden: it keeps its values and comes back with them when it is switched on again within the memory time. After that, the row applies again. “Follow” at the start of a time of day ends an override; “Follow, unless overridden” leaves such lights alone. The card and the diagnostics list the lights set by hand, with **Forget**.
+
+**Lights in several rules.** The newest command wins. A light another rule switched on counts as switched on by hand for a motion rule, which decides under **More about the rule** whether such lights go off after the same time, after their own time, or not at all. A light switched off by hand stays off; motion is ignored for the lock time, so it does not come back on while you leave the room.
+
+**Devices and actions at the start.** Per rule, devices get a value once when a time of day begins: blinds, thermostats, speakers, fans, switches, numbers, and scenes or scripts. Empty cells do nothing.
+
+**Crescendo objects** take a position from 1 to 100; the object's buttons serve as presets, and an empty transition means the object's own speed. Maestro keeps the object's switch-on position up to date, so it never flashes with an old value.
+
+Each rule has a **switch** in Home Assistant. Off means paused: the rule switches nothing and follows no change.
 
 ## How times are worked out
 
@@ -63,7 +102,7 @@ Go to **Settings → Devices & services → Add integration → Cloudless Maestr
 | Until the next day | Until the first time of day of the next day begins |
 | Until reset | No end. The card shows beforehand which change will not happen. |
 
-A new pin replaces the previous one. **Back to plan** ends it. A day adjustment stores only what differs: when you later change the day model, that applies to all other times on that date. Pins and day adjustments survive a restart. If the time of day changed during a restart, there is exactly one change.
+A new pin replaces the previous one. **Back to plan** ends it. A day adjustment stores only what differs: when you later change the day model, that applies to all other times on that date. Pins, day adjustments and the memory of the lights survive a restart. If the time of day changed during a restart, there is exactly one change.
 
 ## In automations
 
@@ -77,8 +116,9 @@ Every rhythm is a device with these entities:
 | Next change | When the time of day changes next |
 | Progress | How far the current time of day has run, in percent |
 | Overridden | On while a time of day is pinned or today is adjusted |
+| Rule … | One switch per rule; off pauses it |
 
-In the automation editor the device offers the triggers **A time of day begins**, **A time of day ends** and **The time of day changes**, and the conditions **The time of day is one of** and **The plan is overridden**. At every change, the event `cloudless_maestro_changed` fires with `from`, `to` and the reason.
+In the automation editor the device offers the triggers **A time of day begins** and **A time of day ends**, each with an offset in minutes (negative: before the planned time, for example the heating 15 minutes before wake-up), **The time of day changes**, and the conditions **The time of day is one of** and **The plan is overridden**. At every change, the event `cloudless_maestro_changed` fires with `from`, `to` and the reason.
 
 | Action | Purpose |
 | --- | --- |
@@ -86,22 +126,26 @@ In the automation editor the device offers the triggers **A time of day begins**
 | `cloudless_maestro.resume` | Back to the plan |
 | `cloudless_maestro.adjust_day` | Adjust a date: another model, other start times, another day end |
 | `cloudless_maestro.clear_day` | Remove a day adjustment |
+| `cloudless_maestro.toggle_rule` | Switch a rule's lights like a button of the rule would |
+| `cloudless_maestro.forget` | Forget what was set by hand |
 | `cloudless_maestro.refresh_calendars` | Read the linked calendars again at once |
 
 ```yaml
-# Bedtime later tonight
-action: cloudless_maestro.adjust_day
+# A wall switch in an automation toggles the bathroom rule
+action: cloudless_maestro.toggle_rule
 target:
   entity_id: sensor.home_time_of_day
 data:
-  times:
-    bedtime: "23:30"
-  end: "00:30+1"
+  rule: bathroom
 ```
+
+## Diagnostics
+
+The **Diagnostics** tab shows the time of day now, the next change, the rules with their lights and timers, the lights set by hand, and a log of changes and decisions, to answer “Why did the light do that?”. The **light check** switches a light on, fades it and switches it off, and records every answer: how fast, how exactly and how often it reports during a fade. Run it on a light that behaves oddly in a rule.
 
 ## The card
 
-Edit a dashboard, add a card and choose **Maestro**. The full variant shows the current time of day, the day as a timeline and, if you like, tomorrow. Tap a coming time to move that change on that date only. The compact variant shows only the time of day and pinning.
+Edit a dashboard, add a card and choose **Maestro**. The full variant shows the current time of day, the day as a timeline and, if you like, tomorrow, plus the lights set by hand. Tap a coming time to move that change on that date only. The compact variant shows only the time of day and pinning.
 
 ## Development
 
@@ -111,7 +155,7 @@ pytest -q
 ruff check .
 ```
 
-`tests/frontend/harness.html` runs the real card and settings page against a simulated Home Assistant, with data from the real backend. Serve the repository's root with any local web server and open this file. `MAESTRO_WRITE_HARNESS=1 pytest tests/test_harness_data.py` refreshes the data.
+`tests/frontend/harness.html` runs the real card and settings page against a simulated Home Assistant, with data from the real backend. Serve the repository's root with any local web server and open this file. `MAESTRO_WRITE_HARNESS=1 pytest tests/test_harness_data.py` refreshes the data, with `MAESTRO_HARNESS_LANG=en` for English.
 
 ## License
 

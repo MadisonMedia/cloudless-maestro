@@ -392,6 +392,16 @@ class RuleEngine:
 
     # -- commands to lights ---------------------------------------------------------------------------
 
+    async def _call(self, domain: str, service: str, data: dict[str, Any], context: Context | None = None) -> bool:
+        """Call an action and keep running when it fails, for example because Crescendo is not installed."""
+        try:
+            await self.hass.services.async_call(domain, service, data, blocking=True, context=context)
+        except Exception as err:
+            self._log(None, "command_error", entity=data.get(ATTR_ENTITY_ID), error=str(err) or type(err).__name__)
+            _LOGGER.warning("Maestro could not call %s.%s for %s: %s", domain, service, data.get(ATTR_ENTITY_ID), err)
+            return False
+        return True
+
     async def _send_on(
         self, run: RuleRun | None, entity_id: str, values: Mapping[str, Any], transition: int | None
     ) -> None:
@@ -439,7 +449,7 @@ class RuleEngine:
         )
         if run is not None:
             track.owner = run.id
-        await self.hass.services.async_call(domain, service, data, blocking=True, context=context)
+        await self._call(domain, service, data, context)
 
     async def _send_off(self, entity_id: str, transition: int | None) -> None:
         state = self._state(entity_id)
@@ -468,17 +478,14 @@ class RuleEngine:
         )
         track.owner = None
         track.prewarn = None
-        await self.hass.services.async_call(domain, service, data, blocking=True, context=context)
+        await self._call(domain, service, data, context)
 
     async def _set_on_position(self, entity_id: str, position: float | None) -> None:
         """Tell a Crescendo object what it switches on to, so it never flashes with an old value."""
         data: dict[str, Any] = {ATTR_ENTITY_ID: entity_id}
         if position is not None:
             data["position"] = position
-        try:
-            await self.hass.services.async_call(CRESCENDO_DOMAIN, "set_on_position", data, blocking=True)
-        except Exception:  # the object may be gone
-            _LOGGER.debug("Could not set the on position of %s", entity_id, exc_info=True)
+        await self._call(CRESCENDO_DOMAIN, "set_on_position", data)
 
     def _values_for(
         self, track: LightTrack, row: Mapping[str, Any], use_memory: bool = True
@@ -911,7 +918,7 @@ class RuleEngine:
             if is_crescendo(state):
                 context = Context()
                 track.note_context(context.id, self.now)
-                await self.hass.services.async_call(
+                await self._call(
                     CRESCENDO_DOMAIN,
                     "fade_to",
                     {
@@ -921,8 +928,7 @@ class RuleEngine:
                         "source": SOURCE,
                         "devices": False,
                     },
-                    blocking=True,
-                    context=context,
+                    context,
                 )
             else:
                 await self._send_on(
