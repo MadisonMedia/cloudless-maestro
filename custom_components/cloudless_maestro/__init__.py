@@ -37,6 +37,7 @@ from .const import (
     SERVICE_PIN,
     SERVICE_REFRESH_CALENDARS,
     SERVICE_RESUME,
+    SERVICE_RESUME_FADE,
     SERVICE_TOGGLE_RULE,
     STORAGE_VERSION,
 )
@@ -116,6 +117,10 @@ SERVICES: dict[str, tuple[dict[Any, Any], Callable[[Rhythm, ServiceCall], Awaita
     SERVICE_TOGGLE_RULE: (
         {vol.Required(ATTR_RULE): str, vol.Optional(ATTR_MODE, default="toggle"): vol.In(("toggle", "on", "off"))},
         lambda r, c: _toggle_rule(r, c.data[ATTR_RULE], c.data[ATTR_MODE]),
+    ),
+    SERVICE_RESUME_FADE: (
+        {vol.Optional(ATTR_LIGHTS): cv.entity_ids},
+        lambda r, c: r.rules.async_resume_fades(c.data.get(ATTR_LIGHTS)),
     ),
     SERVICE_FORGET: (
         {vol.Optional(ATTR_LIGHTS): cv.entity_ids},

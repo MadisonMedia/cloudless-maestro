@@ -10,7 +10,7 @@ Eine Home-Assistant-Integration, die festlegt, welche Tageszeit gerade gilt, und
 
 ![Eine Regel: Leuchten, Auslöser, eine Zeile pro Tageszeit, Geräte beim Beginn](https://raw.githubusercontent.com/MadisonMedia/cloudless-maestro/main/docs/rules-de.png)
 
-> **Beta.** Tageszeiten und Regeln sind drin. Verläufe über eine ganze Tageszeit, etwa ein Lichtwecker, folgen in den nächsten Versionen.
+> **Beta.** Tageszeiten, Regeln und der Lichtwecker sind drin. Rückmeldungen aus dem Betrieb fließen in die nächsten Versionen.
 
 ## Was du bekommst
 
@@ -20,7 +20,8 @@ Eine Home-Assistant-Integration, die festlegt, welche Tageszeit gerade gilt, und
 - **Wochenplan und Kalender.** Jeder Wochentag bekommt ein Modell. Ein Kalender aus Home Assistant kann einzelne Daten übersteuern, zum Beispiel an Feiertagen, bei Wechselschicht oder im Urlaub.
 - **Regeln.** Leuchten mit Auslösern und einer Zeile pro Tageszeit: wie hell, welche Farbe, wann wieder aus, und was mit eingeschalteten Leuchten passiert, wenn eine Tageszeit beginnt. Bewegungs- oder Präsenzmelder, Taster und Einschalten von Hand. Ein Helligkeitssensor kann das Einschalten auf dunkle Stunden begrenzen.
 - **Gedächtnis.** Ändert jemand eine Leuchte von Hand, merkt sich Maestro das: Innerhalb der Merkdauer geht sie wieder so an, danach wieder mit der Zeile.
-- **Geräte beim Beginn einer Tageszeit.** Ein Rollo bekommt seine Position, ein Thermostat seine Temperatur, ein Lautsprecher seine Lautstärke; eine Szene oder ein Skript startet.
+- **Lichtwecker.** Eine Leuchte, Lichtgruppe oder ein Crescendo-Objekt dimmt über eine ganze Tageszeit hoch, etwa 30 Minuten lang während „Aufstehen“.
+- **Geräte zur richtigen Zeit.** Bei, vor oder nach Beginn oder Ende einer Tageszeit bekommt ein Rollo seine Position, ein Thermostat seine Temperatur, ein Lautsprecher seine Lautstärke; eine Szene oder ein Skript startet. Zum Beispiel die Heizung im Bad 60 Minuten vor dem Aufstehen.
 - **Festsetzen und anpassen.** Jetzt eine Tageszeit setzen bis zu einem gewählten Ende, oder einem einzelnen Datum andere Zeiten geben, auch im Voraus.
 - **Für Automationen.** Jeder Rhythmus ist ein Gerät mit Sensoren, einem Schalter pro Regel, Triggern mit Versatz, Bedingungen, Aktionen und einem Ereignis bei jedem Wechsel.
 - **Eine Karte und eine Einstellungsseite**, ohne YAML. Deutsch und Englisch. Mit [Cloudless Crescendo](https://github.com/MadisonMedia/cloudless-crescendo) steuert Maestro Crescendo-Objekte über deren eigene Aktionen.
@@ -62,22 +63,25 @@ Wähle den Rhythmus im Kopf, oder **Neuer Rhythmus …**. Die Sprungleiste links
 
 ## Regeln
 
-Eine Regel hat **Leuchten** (auch Lichtgruppen und Crescendo-Objekte), **Auslöser** und eine Zeile pro Tageszeit.
+Eine Regel hat **Leuchten** (Crescendo-Objekte, einzelne Leuchten und Lichtgruppen), **Auslöser** und eine Zeile pro Tageszeit. Leuchten, Auslöser und Geräte findest du über eine Suche mit Arten als Chips und einer Auswahl des Raums; Crescendo-Objekte stehen vorne.
 
 | Auslöser | Was passiert |
 | --- | --- |
-| Bewegung oder Präsenz | Schaltet mit der Zeile ein. Sind alle Melder frei, gehen die Leuchten nach der Zeit in der Zeile aus, vorher kurz auf die Hälfte gedimmt als Vorwarnung. Bewegung während der Vorwarnung holt sie zurück. |
+| Bewegung oder Präsenz | Schaltet mit der Zeile ein. Erkennt kein Melder der Regel mehr jemanden, läuft die Nachlaufzeit; jede neue Erkennung startet sie neu. Danach dimmt das Licht kurz auf die Hälfte als Vorwarnung und geht aus. Bewegung während der Vorwarnung holt es zurück. |
+| Kontakt | Ein anderer Binärsensor, etwa eine Tür, zählt wie ein Bewegungsmelder: offen ist wie Bewegung. |
 | Taster | Eine Ereignis-Entität, etwa eine Wandfernbedienung, mit der Art des Drucks. Schaltet um: aus, wenn eine Leuchte an ist, sonst an mit der Zeile. Ohne Bewegungsmelder zählt die Zeit der Zeile ab dem Drücken. |
 | Von Hand | Eine Leuchte, die ohne Maestro angeht, bekommt die Werte der Tageszeit oder ihre gemerkten Werte. Geht sie *mit* einem Wert an, etwa „Licht auf 80 %“, behält sie ihn. |
 | Nur wenn dunkel | Ein Helligkeitssensor mit Schwelle. Er begrenzt das Einschalten, schaltet aber nie aus. |
 
-Jede **Zeile** hat eine Reaktion (einschalten, nur ausschalten, nicht reagieren), Helligkeit, Farbe, die Zeit bis zum Ausschalten und das Verhalten **beim Beginn** der Tageszeit für eingeschaltete Leuchten: der neuen Zeile folgen, folgen außer übersteuert, beibehalten oder ausschalten. Unter **Mehr**: Übergang, Merkdauer, Vergessen beim Beginn, eine Schwelle für diese Zeile, das Übernehmen einer anderen Zeile und das Übernehmen für alle Tageszeiten. **Testen** wendet eine Zeile sofort an.
+Jede **Zeile** hat eine Reaktion (einschalten, Verlauf bis Ende, nur ausschalten, nicht reagieren), Helligkeit, Farbe, die **Nachlaufzeit** und das Verhalten **beim Beginn** der Tageszeit für eingeschaltete Leuchten: der neuen Zeile folgen, folgen außer übersteuert, beibehalten oder ausschalten. Unter **Mehr**: Übergang, Merkdauer, Vergessen beim Beginn, eine Schwelle für diese Zeile, das Übernehmen einer anderen Zeile und das Übernehmen für alle Tageszeiten. **Testen** wendet eine Zeile sofort an.
 
 **Gedächtnis.** Ändert jemand eine Leuchte von Hand, ist sie übersteuert: Sie behält ihre Werte und bekommt sie wieder, wenn sie innerhalb der Merkdauer erneut eingeschaltet wird. Danach gilt wieder die Zeile. „Folgen“ beim Beginn einer Tageszeit beendet eine Übersteuerung; „Folgen, außer übersteuert“ lässt solche Leuchten in Ruhe. Karte und Diagnose zeigen die von Hand eingestellten Leuchten mit **Vergessen**.
 
 **Leuchten in mehreren Regeln.** Der neueste Befehl gewinnt. Eine Leuchte, die eine andere Regel eingeschaltet hat, zählt für eine Bewegungsregel wie von Hand eingeschaltet; unter **Mehr zur Regel** steht, ob solche Leuchten nach derselben Zeit, nach einer eigenen Zeit oder gar nicht ausgehen. Eine von Hand ausgeschaltete Leuchte bleibt aus; Bewegung wird für die Sperrzeit ignoriert, damit sie beim Hinausgehen nicht gleich wieder angeht.
 
-**Geräte und Aktionen beim Beginn.** Pro Regel bekommen Geräte einmal ihren Wert, wenn eine Tageszeit beginnt: Rollos, Thermostate, Lautsprecher, Lüfter, Schalter, Zahlen sowie Szenen oder Skripte. Leere Felder tun nichts.
+**Lichtwecker: Verlauf bis Ende.** Steht die Reaktion einer Zeile auf „Verlauf bis Ende“, gehen die Leuchten der Regel beim Beginn dieser Tageszeit mit der Helligkeit **von** an und dimmen bis zu ihrem Ende auf **bis**; ohne Wert dort auf die Helligkeit der nächsten Tageszeit. Weißtöne laufen mit. Jede Leuchte bekommt dafür einen Befehl mit Ziel und Dauer und blendet selbst über; Crescendo-Objekte führen den Verlauf mit ihren Stufen und Geräten selbst aus. Verläufe über 1 Stunde 40 Minuten teilt Maestro in Teile, Leuchten ohne eigene Überblendung bekommen kleine Schritte. Während eines Verlaufs schaltet Bewegung nicht aus. Ändert jemand die Leuchte von Hand, endet der Verlauf; **Fortsetzen** in der Karte oder die Aktion `cloudless_maestro.resume_fade` bringt die Leuchte auf den Wert, den sie jetzt hätte, und lässt sie bis zum Ende weiterlaufen. Wird die laufende Tageszeit festgesetzt, hält der Verlauf an und läuft danach weiter. Verschiebt sich das Ende, folgt er. Nach einem Neustart läuft er an der berechneten Stelle weiter.
+
+**Geräte und Aktionen.** Pro Regel bekommen Geräte einmal ihren Wert, zu einem Zeitpunkt deiner Wahl: bei, vor oder nach Beginn oder Ende einer Tageszeit, mit einem Versatz in Minuten. Rollos, Thermostate, Lautsprecher, Lüfter, Schalter, Zahlen sowie Szenen oder Skripte. Eine Aktion am Ende einer Tageszeit gehört zu ihr, egal welche Tageszeit danach kommt. Die Diagnose zeigt die nächsten geplanten Aktionen.
 
 **Crescendo-Objekte** bekommen eine Position von 1 bis 100; die Buttons des Objekts dienen als Vorgaben, und ein leerer Übergang heißt Tempo des Objekts. Maestro hält die Einschaltposition des Objekts aktuell, damit es nie mit einem alten Wert aufblitzt.
 
@@ -89,6 +93,7 @@ Jede Regel hat einen **Schalter** in Home Assistant. Aus heißt pausiert: Die Re
 - Jede Tageszeit gilt bis zum Start der nächsten. Beginnt der Folgetag, bevor der Vortag endet, gewinnt der Folgetag.
 - Liegt eine berechnete Startzeit vor der vorherigen oder nach dem Tagesende, fällt diese Tageszeit an dem Tag aus. Die Einstellungsseite zeigt das in der Vorschau.
 - Sonnenzeiten gelten für den Standort von Home Assistant oder einen eigenen Standort pro Rhythmus. Gibt es ein Ereignis an einem Tag nicht, etwa im Polartag, gilt die gesetzte Grenze.
+- Eine Uhrzeit nach Mitternacht, etwa 01:00 bei einer Party, gehört noch zum selben Tag: Dafür gibt es bei jeder Zeit „nach Mitternacht“.
 - Alle Zeiten sind lokale Uhrzeit. Eine Uhrzeit, die es bei der Umstellung im März nicht gibt, wird zur nächsten gültigen Minute. Eine doppelte Uhrzeit im Oktober gilt beim ersten Mal.
 - **Heute** ist der Tag, der gerade läuft. Im Grundzustand ist es der kommende Tag. Um 05:00 vor dem Aufstehen kannst du also schon „Aufstehen“ festsetzen.
 
@@ -128,6 +133,7 @@ Im Automationseditor bietet das Gerät die Trigger **Eine Tageszeit beginnt** un
 | `cloudless_maestro.clear_day` | Eine Tagesanpassung entfernen |
 | `cloudless_maestro.toggle_rule` | Die Leuchten einer Regel schalten, wie ein Taster der Regel |
 | `cloudless_maestro.forget` | Das von Hand Eingestellte vergessen |
+| `cloudless_maestro.resume_fade` | Einen von Hand unterbrochenen Verlauf fortsetzen |
 | `cloudless_maestro.refresh_calendars` | Die verknüpften Kalender sofort neu lesen |
 
 ```yaml
@@ -145,7 +151,7 @@ Der Reiter **Diagnose** zeigt die Tageszeit jetzt, den nächsten Wechsel, die Re
 
 ## Die Karte
 
-Bearbeite ein Dashboard, füge eine Karte hinzu und wähle **Maestro**. Die volle Variante zeigt die aktuelle Tageszeit, den Tag als Zeitleiste, auf Wunsch auch morgen, und die von Hand eingestellten Leuchten. Tippe auf eine kommende Uhrzeit, um diesen Wechsel nur an diesem Datum zu verschieben. Die kompakte Variante zeigt nur Tageszeit und Festsetzen.
+Bearbeite ein Dashboard, füge eine Karte hinzu und wähle **Maestro**. Die volle Variante zeigt die aktuelle Tageszeit, den Tag als Zeitleiste, auf Wunsch auch morgen, laufende Verläufe mit Fortschritt und die von Hand eingestellten Leuchten. Tippe auf eine kommende Uhrzeit, um diesen Wechsel nur an diesem Datum zu verschieben. Die kompakte Variante zeigt nur Tageszeit und Festsetzen.
 
 ## Entwicklung
 

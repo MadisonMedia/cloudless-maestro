@@ -47,6 +47,8 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
         ws_refresh_calendars,
         ws_rule_test,
         ws_rule_toggle,
+        ws_action_test,
+        ws_resume_fade,
         ws_forget,
         ws_light_check,
         ws_sidebar,
@@ -449,3 +451,36 @@ async def ws_sidebar(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     if "show" in msg:
         await async_set_sidebar(hass, msg["show"])
     connection.send_result(msg["id"], {"sidebar": sidebar_shown(hass)})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/action/test",
+        vol.Required("entry_id"): str,
+        vol.Required("rule"): str,
+        vol.Required("index"): vol.All(int, vol.Range(min=0)),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_action_test(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Carry out one action of a rule now."""
+    rhythm = _rhythm(hass, connection, msg)
+    if rhythm is None:
+        return
+    run = rhythm.rules.run_by(msg["rule"])
+    if run is None or msg["index"] >= len(run.rule["actions"]):
+        connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Action not found")
+        return
+    await _run(connection, msg, rhythm.rules.async_test_action(run, msg["index"]))
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/fade/resume", **TARGET, vol.Optional("lights"): [str]}
+)
+@websocket_api.async_response
+async def ws_resume_fade(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Continue fades that were stopped by hand."""
+    rhythm = _rhythm(hass, connection, msg)
+    if rhythm is not None:
+        await _run(connection, msg, rhythm.rules.async_resume_fades(msg.get("lights")))

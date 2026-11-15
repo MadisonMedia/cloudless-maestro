@@ -10,7 +10,7 @@ A Home Assistant integration that decides which time of day applies right now, a
 
 ![A rule: lights, triggers, one row per time of day, devices at the start](https://raw.githubusercontent.com/MadisonMedia/cloudless-maestro/main/docs/rules-en.png)
 
-> **Beta.** Times of day and rules are in. Fades over a whole time of day, such as a wake-up light, follow in the next versions.
+> **Beta.** Times of day, rules and the wake-up light are in. Feedback from real homes goes into the next versions.
 
 ## What you get
 
@@ -20,7 +20,8 @@ A Home Assistant integration that decides which time of day applies right now, a
 - **Week plan and calendar.** Every weekday gets a model. A calendar from Home Assistant can override single dates, for example on public holidays, for shift work or on holiday.
 - **Rules.** Lights with triggers and one row of values per time of day: how bright, which color, when off again, and what happens to lights that are on when a time of day begins. Motion or presence sensors, buttons and switching on by hand. A light sensor can limit switching on to when it is dark.
 - **Memory.** When somebody changes a light by hand, Maestro remembers it: within the memory time the light comes back as set, afterwards with the row again.
-- **Devices at the start of a time of day.** A blind gets its position, a thermostat its temperature, a speaker its volume; a scene or script starts.
+- **Wake-up light.** A light, light group or Crescendo object fades up over a whole time of day, for example 30 minutes during “Wake up”.
+- **Devices at the right time.** At, before or after the start or the end of a time of day, a blind gets its position, a thermostat its temperature, a speaker its volume; a scene or script starts. For example the bathroom heating 60 minutes before wake-up.
 - **Pin and adjust.** Set a time of day now until a chosen end, or give a single date other times, also in advance.
 - **For automations.** Every rhythm is a device with sensors, a switch per rule, triggers with an offset, conditions, actions and an event at every change.
 - **A card and a settings page**, no YAML needed. English and German. With [Cloudless Crescendo](https://github.com/MadisonMedia/cloudless-crescendo), Maestro drives Crescendo objects through their own actions.
@@ -62,22 +63,25 @@ Choose the rhythm in the header, or **New rhythm …**. The jump bar on the left
 
 ## Rules
 
-A rule has **lights** (also light groups and Crescendo objects), **triggers** and one row per time of day.
+A rule has **lights** (Crescendo objects, single lights and light groups), **triggers** and one row per time of day. Lights, triggers and devices are found in a search with kinds as chips and a choice of room; Crescendo objects come first.
 
 | Trigger | What happens |
 | --- | --- |
-| Motion or presence | Switches on with the row. When all sensors are clear, the lights go off after the time in the row, dimmed to half for a moment as a warning first. Motion during the warning brings them back. |
+| Motion or presence | Switches on with the row. Once no sensor of the rule sees anybody any more, the time until off runs; every new detection starts it again. Then the light dims to half for a moment as a warning and goes off. Motion during the warning brings it back. |
+| Contact | Another binary sensor, such as a door, counts like a motion sensor: open is like motion. |
 | Button | An event entity such as a wall remote, with the kind of press. Toggles: off when a light is on, otherwise on with the row. Without motion, the row's time counts from the press. |
 | By hand | A light that goes on without Maestro gets the values of the time of day, or its remembered values. A light that goes on *with* a value, such as “light to 80 %”, keeps that value. |
 | Only when dark | A light sensor with a threshold. It limits switching on, never switches off. |
 
-Each **row** has a reaction (switch on, only switch off, do nothing), brightness, color, the time until off, and what happens **at the start** of the time of day to lights that are on: follow the new row, follow unless overridden, keep, or switch off. Under **More**: transition, memory time, forgetting at the start, a threshold for this row, taking over another row, and using the row for all times of day. **Test** applies a row now.
+Each **row** has a reaction (switch on, fade to the end, only switch off, do nothing), brightness, color, the **time until off**, and what happens **at the start** of the time of day to lights that are on: follow the new row, follow unless overridden, keep, or switch off. Under **More**: transition, memory time, forgetting at the start, a threshold for this row, taking over another row, and using the row for all times of day. **Test** applies a row now.
 
 **Memory.** When somebody changes a light by hand, that light is overridden: it keeps its values and comes back with them when it is switched on again within the memory time. After that, the row applies again. “Follow” at the start of a time of day ends an override; “Follow, unless overridden” leaves such lights alone. The card and the diagnostics list the lights set by hand, with **Forget**.
 
 **Lights in several rules.** The newest command wins. A light another rule switched on counts as switched on by hand for a motion rule, which decides under **More about the rule** whether such lights go off after the same time, after their own time, or not at all. A light switched off by hand stays off; motion is ignored for the lock time, so it does not come back on while you leave the room.
 
-**Devices and actions at the start.** Per rule, devices get a value once when a time of day begins: blinds, thermostats, speakers, fans, switches, numbers, and scenes or scripts. Empty cells do nothing.
+**Wake-up light: fade to the end.** When a row's reaction is “Fade to the end”, the rule's lights come on at the start of that time of day with the brightness **from** and fade until its end to **to**; without a value there, to the next time of day's brightness. White tones go along. Each light gets one command with target and duration and fades by itself; Crescendo objects run the fade with their stops and devices themselves. Fades longer than 1 hour 40 minutes go in parts, and lights without their own fade get small steps. During a fade, motion does not switch off. When somebody changes the light by hand, the fade ends; **Resume** in the card or the action `cloudless_maestro.resume_fade` brings the light to where it would be by now and lets it run on to the end. When the running time of day is pinned, the fade holds and goes on afterwards. When the end moves, it follows. After a restart it goes on from the point it has reached.
+
+**Devices and actions.** Per rule, devices get a value once, at a moment you choose: at, before or after the start or the end of a time of day, with an offset in minutes. Blinds, thermostats, speakers, fans, switches, numbers, and scenes or scripts. An action at the end of a time of day belongs to it, whatever comes next. The diagnostics show the coming actions.
 
 **Crescendo objects** take a position from 1 to 100; the object's buttons serve as presets, and an empty transition means the object's own speed. Maestro keeps the object's switch-on position up to date, so it never flashes with an old value.
 
@@ -89,6 +93,7 @@ Each rule has a **switch** in Home Assistant. Off means paused: the rule switche
 - Each time of day lasts until the next one starts. If the next day begins before the previous one ends, the next day wins.
 - If a computed start lies before the previous one or after the day end, that time of day does not happen on that date. The settings page shows this in its preview.
 - Sun times use the location of Home Assistant or a location per rhythm. If an event does not happen on a date, for example in polar day, the bound you set applies.
+- A time after midnight, such as 01:00 at a party, still belongs to the same day: every time has “after midnight” for that.
 - All times are local. A time that does not exist when the clocks go forward moves to the next valid minute. A doubled time when they go back counts the first time.
 - **Today** is the day that is running. In the base state it is the coming day. At 05:00 before wake-up you can therefore already pin “Wake up”.
 
@@ -128,6 +133,7 @@ In the automation editor the device offers the triggers **A time of day begins**
 | `cloudless_maestro.clear_day` | Remove a day adjustment |
 | `cloudless_maestro.toggle_rule` | Switch a rule's lights like a button of the rule would |
 | `cloudless_maestro.forget` | Forget what was set by hand |
+| `cloudless_maestro.resume_fade` | Resume a fade that was stopped by hand |
 | `cloudless_maestro.refresh_calendars` | Read the linked calendars again at once |
 
 ```yaml
@@ -145,7 +151,7 @@ The **Diagnostics** tab shows the time of day now, the next change, the rules wi
 
 ## The card
 
-Edit a dashboard, add a card and choose **Maestro**. The full variant shows the current time of day, the day as a timeline and, if you like, tomorrow, plus the lights set by hand. Tap a coming time to move that change on that date only. The compact variant shows only the time of day and pinning.
+Edit a dashboard, add a card and choose **Maestro**. The full variant shows the current time of day, the day as a timeline and, if you like, tomorrow, plus running fades with their progress and the lights set by hand. Tap a coming time to move that change on that date only. The compact variant shows only the time of day and pinning.
 
 ## Development
 

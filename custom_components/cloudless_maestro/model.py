@@ -11,7 +11,7 @@ import voluptuous as vol
 
 from .schedule import SUN_EVENTS, WEEKDAYS
 
-OPTIONS_VERSION = 2
+OPTIONS_VERSION = 3
 
 KEY_RE = re.compile(r"^[a-z0-9][a-z0-9_]{0,39}$")
 CLOCK_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
@@ -38,6 +38,9 @@ BEGIN_FOLLOW = "follow"
 BEGIN_KEEP = "keep"
 BEGIN_OFF = "off"
 BEGINS = (BEGIN_FOLLOW_FREE, BEGIN_FOLLOW, BEGIN_KEEP, BEGIN_OFF)
+EDGE_START = "start"
+EDGE_END = "end"
+EDGES = (EDGE_START, EDGE_END)
 MANUAL_AFTER_SAME = "same"
 MANUAL_AFTER_NEVER = "never"
 EXTERNAL_ON_APPLY = "apply"
@@ -149,9 +152,23 @@ ROW = vol.Schema(
         vol.Optional("memory", default=None): vol.Any(None, _MINUTES),
         vol.Optional("forget", default=False): bool,
         vol.Optional("lux_below", default=None): vol.Any(None, vol.Coerce(float)),
+        # A fade over the whole time of day, from the row's brightness to fade_to, or to the next row's.
+        vol.Optional("fade", default=False): bool,
+        vol.Optional("fade_to", default=None): vol.Any(None, vol.All(vol.Coerce(int), vol.Range(min=1, max=100))),
     },
     extra=vol.REMOVE_EXTRA,
 )
+ACTION = vol.Schema(
+    {
+        vol.Required("entity"): ENTITY,
+        vol.Required("tod"): KEY,
+        vol.Optional("edge", default=EDGE_START): vol.In(EDGES),
+        vol.Optional("offset", default=0): vol.All(vol.Coerce(int), vol.Range(min=-720, max=720)),
+        vol.Required("value"): vol.Any(bool, vol.Coerce(float), str),
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+# Until 0.1.0b2 devices had one value per time of day, always at its start. They become actions.
 DEVICE = vol.Schema(
     {
         vol.Required("entity"): ENTITY,
@@ -177,7 +194,9 @@ RULE = vol.Schema(
         vol.Optional("external_on", default=EXTERNAL_ON_APPLY): vol.In((EXTERNAL_ON_APPLY, EXTERNAL_ON_KEEP)),
         vol.Optional("warn", default=None): vol.Any(None, bool),
         vol.Optional("lock", default=None): vol.Any(None, vol.All(vol.Coerce(int), vol.Range(min=0, max=3600))),
+        vol.Optional("fade_hold", default=True): bool,
         vol.Optional("rows", default=dict): {KEY: ROW},
+        vol.Optional("actions", default=list): [ACTION],
         vol.Optional("devices", default=list): [DEVICE],
     },
     extra=vol.REMOVE_EXTRA,
@@ -237,8 +256,13 @@ def normalize_options(raw: Mapping[str, Any]) -> dict[str, Any]:
     all_keys = known | {options["base"]["key"]}
     for rule in options["rules"]:
         rule["rows"] = {k: v for k, v in rule["rows"].items() if k in all_keys}
-        for device in rule["devices"]:
-            device["values"] = {k: v for k, v in device["values"].items() if k in all_keys and v is not None}
+        for device in rule.pop("devices", []):
+            for key, value in device["values"].items():
+                if value is not None:
+                    rule["actions"].append(
+                        {"entity": device["entity"], "tod": key, "edge": EDGE_START, "offset": 0, "value": value}
+                    )
+        rule["actions"] = [a for a in rule["actions"] if a["tod"] in all_keys]
         rule["lights"] = list(dict.fromkeys(rule["lights"]))
         rule["motion"] = list(dict.fromkeys(rule["motion"]))
     options["version"] = OPTIONS_VERSION

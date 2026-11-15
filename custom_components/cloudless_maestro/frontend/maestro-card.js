@@ -46,6 +46,12 @@ button { cursor: pointer; }
 .light .lval { color: var(--mae-muted); font-variant-numeric: tabular-nums; flex: 1; }
 .dotlight { width: 8px; height: 8px; border-radius: 50%; background: var(--mae-line); flex: none; }
 .dotlight.on { background: var(--mae-accent); }
+.fade { display: grid; gap: 4px; padding: 2px 0; }
+.fhead { display: flex; align-items: center; gap: 8px; font-size: 13.5px; flex-wrap: wrap; }
+.fhead .lval { flex: 1; }
+.fbar { height: 6px; border-radius: 3px; background: var(--mae-well); overflow: hidden; }
+.fbar i { display: block; height: 100%; border-radius: 3px; background: var(--mae-accent); }
+.btn.small { min-height: 28px; padding: 2px 10px; font-size: 13px; }
 .rowlabel { font-size: 12.5px; color: var(--mae-muted); margin-bottom: 4px; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .btn { border: 1px solid var(--mae-line); background: transparent; border-radius: 10px; min-height: 36px; padding: 5px 12px; font-weight: 550; font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }
@@ -300,9 +306,26 @@ class MaestroCard extends HTMLElement {
         <button class="btn${this._sheet === "day" ? " on" : ""}" data-act="open" data-sheet="day">${icon("mdi:calendar-edit", 18)}${esc(t("Adjust day", "Tag anpassen"))}</button>
         ${st.pinned ? `<button class="btn" data-act="resume">${icon("mdi:calendar-sync", 18)}${esc(t("Back to plan", "Zurück zum Plan"))}</button>` : ""}
       </div>
+      ${this._fadesHTML()}
       ${this._lightsHTML()}
       ${error}${sheet}
     </ha-card>`;
+  }
+
+  // Fades over a whole time of day, such as a wake-up light: how far they are, and a way to resume a stopped one.
+  _fadesHTML() {
+    const t = this._t;
+    const fades = this._snap.fades || [];
+    if (!fades.length) return "";
+    const rows = fades
+      .map((f) => {
+        const state =
+          f.state === "cancelled" ? t("stopped by hand", "von Hand unterbrochen") : f.state === "paused" ? t("held", "angehalten") : `${t("to", "auf")} ${Math.round(f.target)} % ${t("until", "bis")} ${fmtTime(this._hass, f.end)}`;
+        return `<div class="fade"><div class="fhead"><span class="lname">${esc(f.name)}</span><span class="lval">${Math.round(f.value)} % · ${esc(state)}</span>${f.state === "cancelled" ? `<button class="btn small" data-act="fade-resume" data-id="${esc(f.light)}">${icon("mdi:play", 16)}${esc(t("Resume", "Fortsetzen"))}</button>` : ""}</div>
+          <div class="fbar"><i style="width:${Math.max(0, Math.min(100, f.progress))}%"></i></div></div>`;
+      })
+      .join("");
+    return `<div class="lights"><div class="rowlabel">${esc(t("Fades", "Verläufe"))}</div>${rows}</div>`;
   }
 
   // Lights somebody changed by hand: what Maestro remembers for them, and a way to forget it.
@@ -580,6 +603,7 @@ class MaestroCard extends HTMLElement {
     } else if (act === "close") this._closeSheet();
     else if (act === "resume") this._ws({ type: "cloudless_maestro/resume" });
     else if (act === "forget") this._ws({ type: "cloudless_maestro/forget", lights: [el.dataset.id] });
+    else if (act === "fade-resume") this._ws({ type: "cloudless_maestro/fade/resume", lights: [el.dataset.id] });
     else if (act === "pin-key") {
       this._pin.key = el.dataset.key;
       this._pin.mode = null;

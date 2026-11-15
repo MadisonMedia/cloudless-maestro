@@ -23,7 +23,11 @@ from homeassistant.const import (
     STATE_UNKNOWN,
 )
 from homeassistant.core import CALLBACK_TYPE, Context, Event, State, callback
-from homeassistant.helpers.event import async_track_point_in_utc_time, async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_call_later,
+    async_track_point_in_utc_time,
+    async_track_state_change_event,
+)
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
@@ -31,6 +35,8 @@ from .model import (
     BEGIN_FOLLOW,
     BEGIN_FOLLOW_FREE,
     BEGIN_OFF,
+    EDGE_END,
+    EDGE_START,
     EXTERNAL_ON_KEEP,
     MANUAL_AFTER_NEVER,
     MANUAL_AFTER_SAME,
@@ -52,6 +58,14 @@ EXPECT_GRACE = timedelta(seconds=5)
 CONTEXT_KEEP = timedelta(seconds=90)
 PREWARN_TRANSITION = 1
 QUICK_TRANSITION = 1
+RESUME_TRANSITION = 2
+# Zigbee and Matter limit one transition to about 1 h 49 min; longer fades go in parts.
+MAX_CHUNK = timedelta(seconds=6000)
+LONG_TRANSITION = 300  # seconds; from here on a report must also be near where the fade is by now
+FADE_RUNNING = "running"
+FADE_PAUSED = "paused"
+FADE_CANCELLED = "cancelled"
+TRANSITION_FEATURE = 32  # LightEntityFeature.TRANSITION
 
 # How Crescendo names what happened last on an object (crescendo_api 1).
 CRESCENDO_SWITCH_ON = "switch_on"
@@ -74,6 +88,17 @@ def is_dimmable(state: State | None) -> bool:
         return False
     modes = state.attributes.get("supported_color_modes") or ()
     return any(m != "onoff" for m in modes) or is_crescendo(state)
+
+
+def can_transition(state: State | None) -> bool:
+    """Return whether a light fades by itself."""
+    if state is None:
+        return False
+    return is_crescendo(state) or bool(int(state.attributes.get("supported_features") or 0) & TRANSITION_FEATURE)
+
+
+def color_modes(state: State | None) -> set[str]:
+    return set((state.attributes.get("supported_color_modes") or ()) if state is not None else ())
 
 
 def values_of(state: State | None) -> dict[str, Any]:
@@ -135,18 +160,87 @@ class Expectation:
     until: datetime
     transition: float = 0
     contexts: set[str] = field(default_factory=set)
+    at: datetime | None = None
 
     def reached(self, values: Mapping[str, Any]) -> bool:
         return same_values(self.target, values)
 
-    def on_the_way(self, values: Mapping[str, Any]) -> bool:
+    def on_the_way(self, values: Mapping[str, Any], moment: datetime | None = None) -> bool:
         """A brightness between start and target while a transition runs."""
-        if self.transition <= 0 or not (values.get("on") and self.target.get("on") and self.start.get("on")):
+        if self.transition <= 0 or not (values.get("on") and self.target.get("on")):
             return False
-        return _between(
-            float(values.get("brightness") or 0),
-            float(self.start.get("brightness") or 0),
-            float(self.target.get("brightness") or 0),
+        begin = float(self.start.get("brightness") or 0) if self.start.get("on") else 0.0
+        end = float(self.target.get("brightness") or 0)
+        value = float(values.get("brightness") or 0)
+        if not _between(value, begin, end):
+            return False
+        if self.transition < LONG_TRANSITION or self.at is None or moment is None:
+            return True
+        # In a long fade a value far from where the fade is by now was set by hand.
+        share = min(1.0, max(0.0, (moment - self.at).total_seconds() / self.transition))
+        expected = begin + (end - begin) * share
+        return abs(value - expected) <= max(10.0, abs(end - begin) * 0.25)
+
+
+@dataclass
+class Fade:
+    """A light running from one brightness to another over a whole time of day."""
+
+    rule: str
+    light: str
+    tod: str
+    start: datetime
+    end: datetime
+    begin: float
+    target: float
+    kelvin_from: int | None = None
+    kelvin_to: int | None = None
+    state: str = FADE_RUNNING
+    held: float | None = None
+
+    def share(self, moment: datetime) -> float:
+        total = (self.end - self.start).total_seconds()
+        if total <= 0:
+            return 1.0
+        return min(1.0, max(0.0, (moment - self.start).total_seconds() / total))
+
+    def value_at(self, moment: datetime) -> float:
+        return round(self.begin + (self.target - self.begin) * self.share(moment), 1)
+
+    def kelvin_at(self, moment: datetime) -> int | None:
+        if self.kelvin_from is None or self.kelvin_to is None:
+            return self.kelvin_to or self.kelvin_from
+        return round(self.kelvin_from + (self.kelvin_to - self.kelvin_from) * self.share(moment))
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "rule": self.rule,
+            "light": self.light,
+            "tod": self.tod,
+            "start": self.start.isoformat(),
+            "end": self.end.isoformat(),
+            "begin": self.begin,
+            "target": self.target,
+            "kelvin_from": self.kelvin_from,
+            "kelvin_to": self.kelvin_to,
+            "state": self.state,
+            "held": self.held,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> Fade:
+        return cls(
+            str(data["rule"]),
+            str(data["light"]),
+            str(data["tod"]),
+            datetime.fromisoformat(data["start"]),
+            datetime.fromisoformat(data["end"]),
+            float(data["begin"]),
+            float(data["target"]),
+            data.get("kelvin_from"),
+            data.get("kelvin_to"),
+            str(data.get("state") or FADE_RUNNING),
+            data.get("held"),
         )
 
 
@@ -192,7 +286,7 @@ class LightTrack:
                 # The command is done; older expectations are history.
                 del self.expectations[: index + 1]
                 return True
-        return any(e.on_the_way(values) for e in self.expectations)
+        return any(e.on_the_way(values, now) for e in self.expectations)
 
     def _settle(self, values: Mapping[str, Any]) -> None:
         for index, expectation in enumerate(self.expectations):
@@ -231,6 +325,12 @@ class RuleEngine:
         self.runs: list[RuleRun] = []
         self._unsubs: list[CALLBACK_TYPE] = []
         self._service_calls: dict[str, bool] = {}  # context id of light.turn_on -> carried a value
+        self.fades: dict[str, Fade] = {}  # by light
+        self._fade_timers: dict[str, CALLBACK_TYPE] = {}
+        self._fade_sent: set[str] = set()  # lights whose fade was sent since Home Assistant started
+        self._action_timers: dict[tuple, CALLBACK_TYPE] = {}
+        self._action_planned: dict[tuple, datetime] = {}
+        self._action_fired: dict[tuple, datetime] = {}
 
     # -- lifecycle ------------------------------------------------------------------------------------
 
@@ -239,6 +339,12 @@ class RuleEngine:
         for entity_id, data in (self.rhythm.data.get("lights") or {}).items():
             if isinstance(data, Mapping):
                 self.tracks[entity_id] = LightTrack.from_dict(entity_id, data)
+        for item in self.rhythm.data.get("fades") or ():
+            try:
+                fade = Fade.from_dict(item)
+            except (KeyError, TypeError, ValueError):
+                continue
+            self.fades[fade.light] = fade
         self._build()
         # Lights that were about to go off when Home Assistant stopped go off at that moment, or soon.
         now = self.now
@@ -252,8 +358,10 @@ class RuleEngine:
             self._reschedule(run)
 
     async def async_stop(self) -> None:
-        """Stop listening and cancel timers."""
+        """Stop listening and cancel timers. Running fades are stored and continue after a restart."""
         self._teardown()
+        for light in list(self._fade_timers):
+            self._cancel_fade_timer(light)
 
     @callback
     def options_changed(self) -> None:
@@ -266,6 +374,9 @@ class RuleEngine:
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()
+        for key in list(self._action_timers):
+            self._action_timers.pop(key)()
+        self._action_planned.clear()
         if not keep_runs:
             for run in self.runs:
                 self._cancel_timers(run)
@@ -302,8 +413,11 @@ class RuleEngine:
             self._unsubs.append(async_track_state_change_event(self.hass, sorted(motion), self._motion_changed))
         if buttons:
             self._unsubs.append(async_track_state_change_event(self.hass, sorted(buttons), self._button_changed))
+        self._unsubs.append(self.rhythm.async_add_listener(self._rhythm_updated))
         for run in self.runs:
             self._reschedule(run)
+        if self.rhythm.state is not None:
+            self._schedule_actions()
 
     def _cancel_timers(self, run: RuleRun) -> None:
         if run.timer is not None:
@@ -383,6 +497,7 @@ class RuleEngine:
         self.rhythm.data["pending"] = {
             run.id: {light: due.isoformat() for light, due in run.pending.items()} for run in self.runs if run.pending
         }
+        self.rhythm.data["fades"] = [fade.as_dict() for fade in self.fades.values()]
         self.rhythm._save()
 
     def _log(self, run: RuleRun | None, what: str, **detail: Any) -> None:
@@ -403,7 +518,12 @@ class RuleEngine:
         return True
 
     async def _send_on(
-        self, run: RuleRun | None, entity_id: str, values: Mapping[str, Any], transition: int | None
+        self,
+        run: RuleRun | None,
+        entity_id: str,
+        values: Mapping[str, Any],
+        transition: int | None,
+        start: Mapping[str, Any] | None = None,
     ) -> None:
         """Switch a light on to values. The answer is Maestro's own, so it is noted before the call."""
         state = self._state(entity_id)
@@ -435,16 +555,24 @@ class RuleEngine:
             elif values.get("rgb"):
                 data["rgb_color"] = [int(c) for c in values["rgb"]]
                 target["rgb"] = [int(c) for c in values["rgb"]]
+            modes = color_modes(state)
+            if "color_temp" not in modes and "color_temp_kelvin" in data:
+                del data["color_temp_kelvin"]
+                target["kelvin"] = None
+            if not modes & {"hs", "rgb", "rgbw", "rgbww", "xy"} and "rgb_color" in data:
+                del data["rgb_color"]
+                target["rgb"] = None
             if not is_dimmable(state):
                 data = {ATTR_ENTITY_ID: entity_id}
         track.note_context(context.id, now)
         track.expectations.append(
             Expectation(
                 target,
-                values_of(state),
+                dict(start) if start is not None else values_of(state),
                 now + timedelta(seconds=transition or 0) + EXPECT_GRACE,
                 float(transition or 0),
                 {context.id},
+                now,
             )
         )
         if run is not None:
@@ -474,6 +602,7 @@ class RuleEngine:
                 now + timedelta(seconds=transition or 0) + EXPECT_GRACE,
                 float(transition or 0),
                 {context.id},
+                now,
             )
         )
         track.owner = None
@@ -507,10 +636,20 @@ class RuleEngine:
     ) -> list[str]:
         """Switch the rule's lights on with the row of a time of day. Returns the lights it switched."""
         row = self._row(run, key)
+        current = self.rhythm.state.key if self.rhythm.state else None
         done = []
         for entity_id in lights if lights is not None else run.rule["lights"]:
             state = self._state(entity_id)
             if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+                continue
+            if row.get("fade") and (key is None or key == current):
+                # In a time of day with a fade, the light joins the fade where it is by now.
+                fade = self.fades.get(entity_id)
+                if fade is not None and fade.tod == current and fade.state == FADE_CANCELLED:
+                    await self._resume_fade(fade)
+                elif fade is None or fade.tod != current:
+                    await self._start_fade(run, entity_id, current)
+                done.append(entity_id)
                 continue
             track = self.tracks.setdefault(entity_id, LightTrack(entity_id))
             values, from_memory = self._values_for(track, row, use_memory)
@@ -539,6 +678,9 @@ class RuleEngine:
         self.hass.async_create_task(self._async_time_of_day_changed(old, new), eager_start=True)
 
     async def _async_time_of_day_changed(self, old: str | None, new: str) -> None:
+        for light, fade in list(self.fades.items()):
+            if fade.tod != new:
+                self._drop_fade(light)
         for run in self.runs:
             if not run.rule["active"]:
                 continue
@@ -557,7 +699,12 @@ class RuleEngine:
                     if track is not None:
                         track.memory = None
             on_lights = [e for e in run.rule["lights"] if self._is_on(e)]
-            if on_lights and react != REACT_NONE:
+            if row.get("fade") and react == REACT_ON:
+                # A fade switches its lights on by itself and runs until the time of day ends.
+                for entity_id in run.rule["lights"]:
+                    await self._start_fade(run, entity_id, new)
+                self._log(run, "fade_start", to=new, lights=list(run.rule["lights"]))
+            elif on_lights and react != REACT_NONE:
                 if begin == BEGIN_OFF:
                     await self.turn_off(run, on_lights, self._transition(run, row, self._state(on_lights[0])))
                     self._log(run, "begin_off", to=new, lights=on_lights)
@@ -572,10 +719,13 @@ class RuleEngine:
                     if wanted:
                         await self.apply_row(run, new, wanted, use_memory=False)
                         self._log(run, "follow", to=new, lights=wanted)
-            for device in run.rule["devices"]:
-                value = device["values"].get(new)
-                if value is not None:
-                    await self._apply_device(run, device["entity"], value)
+            for action in run.rule["actions"]:
+                if action["offset"]:
+                    continue
+                if (action["edge"] == EDGE_START and action["tod"] == new) or (
+                    action["edge"] == EDGE_END and action["tod"] == old
+                ):
+                    await self._apply_device(run, action["entity"], action["value"])
         self._save()
 
     def _decides(self, run: RuleRun, entity_id: str) -> bool:
@@ -699,6 +849,9 @@ class RuleEngine:
             else:
                 track.owner = None
             return
+        fade = self.fades.get(entity_id)
+        if fade is not None and fade.state in (FADE_RUNNING, FADE_PAUSED):
+            self._cancel_fade(fade, "by_hand")
         if values["on"] and not was_on:
             await self._manual_on(track, new, event.context.id if event.context else None)
         elif values["on"] and was_on:
@@ -828,7 +981,7 @@ class RuleEngine:
             return
         after = self._after(run, row)
         for entity_id in run.rule["lights"]:
-            if not self._is_on(entity_id) or entity_id in run.pending:
+            if not self._is_on(entity_id) or entity_id in run.pending or self._held_by_fade(run, entity_id):
                 continue
             minutes = self._minutes_for(run, entity_id, after)
             if minutes is None:
@@ -862,7 +1015,7 @@ class RuleEngine:
         else:
             # Without motion, a row's time means: off this long after switching on.
             minutes = int(row["after"]) if row.get("after") else None
-        if minutes is None or minutes <= 0:
+        if minutes is None or minutes <= 0 or self._held_by_fade(run, entity_id):
             return
         run.pending[entity_id] = self.now + timedelta(minutes=minutes)
         self._reschedule(run)
@@ -888,6 +1041,7 @@ class RuleEngine:
         due = [e for e, at in run.pending.items() if at <= now + timedelta(seconds=1)]
         for entity_id in due:
             run.pending.pop(entity_id, None)
+        due = [e for e in due if not self._held_by_fade(run, e)]
         if not due:
             self._reschedule(run)
             return
@@ -1003,6 +1157,10 @@ class RuleEngine:
         """Switch the rule's lights: off when any is on, else on with the row of the time of day."""
         on_lights = [e for e in run.rule["lights"] if self._is_on(e)]
         if mode == "off" or (mode == "toggle" and on_lights):
+            for entity_id in on_lights:
+                fade = self.fades.get(entity_id)
+                if fade is not None and fade.state in (FADE_RUNNING, FADE_PAUSED):
+                    self._cancel_fade(fade, by)
             await self.turn_off(run, on_lights, QUICK_TRANSITION)
             run.pending = {e: d for e, d in run.pending.items() if e not in on_lights}
             self._reschedule(run)
@@ -1019,6 +1177,287 @@ class RuleEngine:
             self._all_clear(run)
         self._log(run, "toggle_on", by=by, lights=done)
 
+    # -- fades over a whole time of day ---------------------------------------------------------------
+
+    def _held_by_fade(self, run: RuleRun, entity_id: str) -> bool:
+        """While a fade runs, motion does not switch its light off, unless the rule says so."""
+        fade = self.fades.get(entity_id)
+        return fade is not None and fade.state == FADE_RUNNING and bool(run.rule.get("fade_hold", True))
+
+    def _fade_target(self, run: RuleRun, tod: str) -> tuple[float, int | None]:
+        """Return where a fade ends: the row's own target, else the next time of day's row, else 100 %."""
+        row = run.rule["rows"].get(tod) or {}
+        own = row.get("color") if isinstance(row.get("color"), Mapping) else {}
+        state = self.rhythm.state
+        nxt = run.rule["rows"].get(state.next_key or "") if state is not None and state.key == tod else None
+        nxt_color = (nxt or {}).get("color") if isinstance((nxt or {}).get("color"), Mapping) else {}
+        kelvin = nxt_color.get("kelvin") or own.get("kelvin")
+        if row.get("fade_to"):
+            return float(row["fade_to"]), kelvin
+        if nxt and nxt.get("react") == REACT_ON and nxt.get("brightness"):
+            return float(nxt["brightness"]), kelvin
+        return 100.0, kelvin
+
+    async def _start_fade(self, run: RuleRun, entity_id: str, tod: str | None) -> None:
+        """Start a light's fade from the row's brightness, or from where it is, to the end of the time of day."""
+        state = self.rhythm.state
+        light = self._state(entity_id)
+        if tod is None or state is None or state.key != tod or state.until is None:
+            return
+        if light is None or light.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            return
+        now = self.now
+        row = run.rule["rows"].get(tod) or {}
+        target, kelvin_to = self._fade_target(run, tod)
+        current = values_of(light)
+        own = row.get("color") if isinstance(row.get("color"), Mapping) else {}
+        begin = float(current["brightness"]) if current["on"] else float(row.get("brightness") or 1)
+        kelvin_from = current.get("kelvin") if current["on"] and current.get("kelvin") else own.get("kelvin")
+        self._drop_fade(entity_id)
+        self.fades[entity_id] = Fade(run.id, entity_id, tod, now, state.until, begin, target, kelvin_from, kelvin_to)
+        track = self.tracks.setdefault(entity_id, LightTrack(entity_id))
+        track.overridden = False
+        track.memory = None
+        await self._fade_step(entity_id, first=not current["on"])
+        self._save()
+
+    async def _fade_step(self, entity_id: str, first: bool = False) -> None:
+        """Send the next part of a fade: one command per part, the light or Crescendo fades by itself."""
+        fade = self.fades.get(entity_id)
+        if fade is None or fade.state != FADE_RUNNING:
+            return
+        self._cancel_fade_timer(entity_id)
+        self._fade_sent.add(entity_id)
+        run = self.run_by(fade.rule)
+        light = self._state(entity_id)
+        now = self.now
+        remaining = (fade.end - now).total_seconds()
+        here = {"on": True, "brightness": fade.value_at(now)}
+        if first:
+            await self._send_on(run, entity_id, {"brightness": fade.value_at(now), "kelvin": fade.kelvin_at(now)}, 0)
+        if remaining <= 1:
+            await self._send_on(run, entity_id, {"brightness": fade.target, "kelvin": fade.kelvin_to}, 1, start=here)
+            return
+        next_at = None
+        if is_crescendo(light):
+            await self._send_on(run, entity_id, {"brightness": fade.target}, round(remaining), start=here)
+        elif can_transition(light):
+            chunk_end = min(fade.end, now + MAX_CHUNK)
+            seconds = round((chunk_end - now).total_seconds())
+            values = {"brightness": fade.value_at(chunk_end), "kelvin": fade.kelvin_at(chunk_end)}
+            await self._send_on(run, entity_id, values, seconds, start=here)
+            next_at = chunk_end if chunk_end < fade.end else None
+        else:
+            # A light without its own fade gets small steps.
+            await self._send_on(run, entity_id, {"brightness": fade.value_at(now), "kelvin": fade.kelvin_at(now)}, None)
+            step = timedelta(seconds=max(30.0, (fade.end - fade.start).total_seconds() / 100))
+            next_at = min(fade.end, now + step)
+        if next_at is not None:
+
+            @callback
+            def fire(_now: datetime) -> None:
+                self._fade_timers.pop(entity_id, None)
+                self.hass.async_create_task(self._fade_step(entity_id), eager_start=True)
+
+            self._fade_timers[entity_id] = async_track_point_in_utc_time(self.hass, fire, next_at)
+
+    def _cancel_fade_timer(self, entity_id: str) -> None:
+        timer = self._fade_timers.pop(entity_id, None)
+        if timer is not None:
+            timer()
+
+    def _drop_fade(self, entity_id: str) -> None:
+        self._cancel_fade_timer(entity_id)
+        self._fade_sent.discard(entity_id)
+        self.fades.pop(entity_id, None)
+
+    def _cancel_fade(self, fade: Fade, by: str) -> None:
+        """Somebody changed the light: the fade stops and can be resumed."""
+        if fade.state == FADE_RUNNING:
+            fade.held = fade.value_at(self.now)
+        fade.state = FADE_CANCELLED
+        self._cancel_fade_timer(fade.light)
+        self._log(self.run_by(fade.rule), "fade_cancelled", light=fade.light, by=by)
+        self._save()
+
+    async def _pause_fade(self, fade: Fade) -> None:
+        """The running time of day was pinned: the fade holds where it is."""
+        now = self.now
+        fade.held = fade.value_at(now)
+        fade.state = FADE_PAUSED
+        self._cancel_fade_timer(fade.light)
+        light = self._state(fade.light)
+        if is_crescendo(light):
+            context = Context()
+            self.tracks.setdefault(fade.light, LightTrack(fade.light)).note_context(context.id, now)
+            await self._call(CRESCENDO_DOMAIN, "stop", {ATTR_ENTITY_ID: fade.light, "source": SOURCE}, context)
+        else:
+            run = self.run_by(fade.rule)
+            await self._send_on(run, fade.light, {"brightness": fade.held, "kelvin": fade.kelvin_at(now)}, 1)
+        self._log(self.run_by(fade.rule), "fade_paused", light=fade.light)
+
+    async def _resume_fade(self, fade: Fade, quick: bool = True) -> None:
+        """Continue a fade: to where it would be by now, then on to the end of the time of day."""
+        state = self.rhythm.state
+        if state is None or state.key != fade.tod or state.until is None or state.until <= self.now:
+            return
+        now = self.now
+        if fade.state == FADE_PAUSED and fade.held is not None:
+            fade.begin = fade.held
+            fade.start = now
+        elif fade.state == FADE_CANCELLED:
+            fade.begin = fade.value_at(now)
+            fade.start = now
+        fade.end = state.until
+        fade.state = FADE_RUNNING
+        fade.held = None
+        track = self.tracks.setdefault(fade.light, LightTrack(fade.light))
+        track.overridden = False
+        track.memory = None
+        run = self.run_by(fade.rule)
+        if quick:
+            await self._send_on(
+                run, fade.light, {"brightness": fade.begin, "kelvin": fade.kelvin_at(now)}, RESUME_TRANSITION
+            )
+
+            @callback
+            def later(_now: datetime) -> None:
+                self._fade_timers.pop(fade.light, None)
+                self.hass.async_create_task(self._fade_step(fade.light), eager_start=True)
+
+            self._cancel_fade_timer(fade.light)
+            self._fade_timers[fade.light] = async_call_later(self.hass, RESUME_TRANSITION, later)
+        else:
+            await self._fade_step(fade.light)
+        self._log(run, "fade_resumed", light=fade.light)
+        self._save()
+
+    async def async_resume_fades(self, lights: Iterable[str] | None = None) -> None:
+        """Continue fades that were stopped by hand."""
+        for fade in list(self.fades.values()):
+            if fade.state == FADE_CANCELLED and (lights is None or fade.light in lights):
+                await self._resume_fade(fade)
+
+    @callback
+    def _rhythm_updated(self) -> None:
+        """After every evaluation of the rhythm: plan actions with an offset and keep fades in step."""
+        self._schedule_actions()
+        self.hass.async_create_task(self._async_check_fades(), eager_start=True)
+
+    async def _async_check_fades(self) -> None:
+        state = self.rhythm.state
+        if state is None:
+            return
+        now = self.now
+        for light, fade in list(self.fades.items()):
+            run = self.run_by(fade.rule)
+            row = run.rule["rows"].get(fade.tod) if run is not None else None
+            if run is None or not row or not row.get("fade") or state.key != fade.tod:
+                self._drop_fade(light)
+                continue
+            if fade.state == FADE_CANCELLED:
+                continue
+            holding = state.pinned and state.planned == fade.tod
+            if holding:
+                if fade.state == FADE_RUNNING:
+                    await self._pause_fade(fade)
+            elif fade.state == FADE_PAUSED:
+                await self._resume_fade(fade, quick=False)
+            elif state.until is not None and abs((state.until - fade.end).total_seconds()) > 20:
+                # The end moved: on from where the light is, slower or faster.
+                fade.begin = fade.value_at(now)
+                fade.start = now
+                fade.end = state.until
+                await self._fade_step(light)
+                self._log(run, "fade_moved", light=light)
+            elif light not in self._fade_sent and fade.end > now:
+                # After a restart: on from the point the fade has reached.
+                await self._fade_step(light, first=not self._is_on(light))
+        self._save()
+
+    def describe_fades(self) -> list[dict[str, Any]]:
+        now = self.now
+        out = []
+        for fade in self.fades.values():
+            run = self.run_by(fade.rule)
+            light = self._state(fade.light)
+            out.append(
+                {
+                    "rule": fade.rule,
+                    "rule_name": run.name if run else fade.rule,
+                    "light": fade.light,
+                    "name": (light.attributes.get("friendly_name") if light else None) or fade.light,
+                    "tod": fade.tod,
+                    "state": fade.state,
+                    "begin": fade.begin,
+                    "target": fade.target,
+                    "start": fade.start.isoformat(),
+                    "end": fade.end.isoformat(),
+                    "value": fade.held if fade.state != FADE_RUNNING and fade.held is not None else fade.value_at(now),
+                    "progress": round(fade.share(now) * 100),
+                }
+            )
+        return out
+
+    # -- actions with an offset -----------------------------------------------------------------------
+
+    @staticmethod
+    def _action_key(run: RuleRun, action: Mapping[str, Any]) -> tuple:
+        return (run.id, action["entity"], action["tod"], action["edge"], action["offset"], str(action["value"]))
+
+    @callback
+    def _schedule_actions(self) -> None:
+        """Keep one timer per action that comes before or after a begin or an end."""
+        wanted: dict[tuple, tuple[datetime, RuleRun, Mapping[str, Any]]] = {}
+        after = dt_util.utcnow() - timedelta(seconds=30)
+        for run in self.runs:
+            if not run.rule["active"]:
+                continue
+            for action in run.rule["actions"]:
+                if not action["offset"]:
+                    continue
+                key = self._action_key(run, action)
+                fired = self._action_fired.get(key)
+                moment = self.rhythm.next_edge(action["tod"], action["edge"], action["offset"], after)
+                if moment is not None and fired is not None and moment <= fired:
+                    moment = self.rhythm.next_edge(action["tod"], action["edge"], action["offset"], fired)
+                if moment is not None:
+                    wanted[key] = (moment, run, action)
+        for key in list(self._action_timers):
+            if key not in wanted or wanted[key][0] != self._action_planned.get(key):
+                self._action_timers.pop(key)()
+                self._action_planned.pop(key, None)
+        for key, (moment, run, action) in wanted.items():
+            if key in self._action_timers:
+                continue
+
+            @callback
+            def fire(
+                _now: datetime, key: tuple = key, moment: datetime = moment, run: RuleRun = run, action=action
+            ) -> None:
+                self._action_timers.pop(key, None)
+                self._action_planned.pop(key, None)
+                self._action_fired[key] = moment
+                self.hass.async_create_task(
+                    self._apply_device(run, action["entity"], action["value"]), eager_start=True
+                )
+                self._schedule_actions()
+
+            self._action_planned[key] = moment
+            self._action_timers[key] = async_track_point_in_utc_time(self.hass, fire, moment)
+
+    def describe_actions(self) -> list[dict[str, Any]]:
+        """Return the coming moments of all actions with an offset."""
+        out = []
+        for run in self.runs:
+            for action in run.rule["actions"]:
+                key = self._action_key(run, action)
+                moment = self._action_planned.get(key)
+                out.append(
+                    {"rule": run.id, "rule_name": run.name, **action, "next": moment.isoformat() if moment else None}
+                )
+        return out
+
     # -- for the page, the card and the actions -------------------------------------------------------
 
     def run_by(self, ident: str) -> RuleRun | None:
@@ -1030,13 +1469,29 @@ class RuleEngine:
         return None
 
     async def async_test(self, run: RuleRun, key: str) -> None:
-        """Apply a row now, as a test from the page: lights on with the row, devices set."""
-        await self.apply_row(run, key, use_memory=False)
-        for device in run.rule["devices"]:
-            value = device["values"].get(key)
-            if value is not None:
-                await self._apply_device(run, device["entity"], value)
+        """Apply a row now, as a test from the page. A fade runs in 20 seconds instead of the whole time of day."""
+        row = self._row(run, key)
+        if row.get("fade") and row.get("react") == REACT_ON:
+            target, kelvin_to = self._fade_target(run, key)
+            begin = float(row.get("brightness") or 1)
+            kelvin_from = (row.get("color") or {}).get("kelvin") if isinstance(row.get("color"), Mapping) else None
+            for entity_id in run.rule["lights"]:
+                await self._send_on(run, entity_id, {"brightness": begin, "kelvin": kelvin_from}, 0)
+                await self._send_on(
+                    run,
+                    entity_id,
+                    {"brightness": target, "kelvin": kelvin_to},
+                    20,
+                    start={"on": True, "brightness": begin},
+                )
+        else:
+            await self.apply_row(run, key, use_memory=False)
         self._log(run, "test", row=key)
+
+    async def async_test_action(self, run: RuleRun, index: int) -> None:
+        """Carry out one action now, as a test from the page."""
+        action = run.rule["actions"][index]
+        await self._apply_device(run, action["entity"], action["value"])
 
     async def async_forget(self, lights: Iterable[str] | None = None) -> None:
         """Forget what was set by hand."""

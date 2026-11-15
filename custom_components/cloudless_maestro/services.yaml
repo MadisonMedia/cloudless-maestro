@@ -100,3 +100,14 @@ forget:
         entity:
           multiple: true
           domain: light
+
+resume_fade:
+  target:
+    entity:
+      integration: cloudless_maestro
+  fields:
+    lights:
+      selector:
+        entity:
+          multiple: true
+          domain: light

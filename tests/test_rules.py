@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from freezegun.api import FrozenDateTimeFactory
@@ -10,6 +10,8 @@ from homeassistant.core import Context, HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
 import pytest
 from pytest_homeassistant_custom_component.common import async_fire_time_changed, async_mock_service
+
+from custom_components.cloudless_maestro.model import normalize_options
 
 from .conftest import TZ, sample_options
 
@@ -425,3 +427,163 @@ async def test_a_trigger_with_an_offset_fires_before_the_planned_begin(
     assert calls[0].data["at"].startswith("2026-11-09T18:45")
     await move_to(hass, freezer, local(2026, 11, 9, 19, 1))
     assert len(calls) == 1
+
+
+def wake_options(**rule: Any) -> dict[str, Any]:
+    """Aufstehen 06:30 to 07:00 fades from 5 % to the 40 % of Morgen."""
+    options = rule_options(**rule)
+    options["rules"][0]["rows"]["aufstehen"] = {"react": "on", "brightness": 5, "fade": True}
+    return normalize_options(options)
+
+
+def last_on(lights: FakeLights, entity_id: str = BAD) -> dict[str, Any]:
+    return next(
+        c.data
+        for c in reversed(lights.calls)
+        if c.service == "turn_on" and entity_id in cv.ensure_list(c.data["entity_id"])
+    )
+
+
+async def test_a_wake_up_fade_runs_over_the_time_of_day_and_can_be_resumed(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    freezer.move_to(local(2026, 11, 9, 6, 20))
+    rhythm = await setup_rhythm(options=wake_options())
+    await move_to(hass, freezer, local(2026, 11, 9, 6, 30, 1))
+    data = last_on(lights)
+    assert data["brightness_pct"] == 40
+    assert data["color_temp_kelvin"] == 3000
+    assert 1790 <= data["transition"] <= 1800
+    starts = [c.data for c in lights.calls if c.service == "turn_on"]
+    assert starts[0]["brightness_pct"] == 5 and starts[0]["transition"] == 0
+    assert rhythm.rules.describe_fades()[0]["state"] == "running"
+    assert not rhythm.rules.overridden()
+    # Somebody turns it up by hand: the fade stops, the light keeps the value.
+    await move_to(hass, freezer, local(2026, 11, 9, 6, 40))
+    lights.by_hand(BAD, "on", brightness=255)
+    await hass.async_block_till_done()
+    assert rhythm.rules.describe_fades()[0]["state"] == "cancelled"
+    assert rhythm.rules.overridden()
+    # Resume: to where the fade would be by now, then on to the end.
+    await move_to(hass, freezer, local(2026, 11, 9, 6, 45))
+    await hass.services.async_call("cloudless_maestro", "resume_fade", {}, blocking=True)
+    await hass.async_block_till_done()
+    data = last_on(lights)
+    assert data["transition"] == 2 and 21 <= data["brightness_pct"] <= 24
+    await move_to(hass, freezer, local(2026, 11, 9, 6, 45, 3))
+    data = last_on(lights)
+    assert data["brightness_pct"] == 40 and 890 <= data["transition"] <= 900
+    assert not rhythm.rules.overridden()
+    # Morgen begins: the fade is over.
+    await move_to(hass, freezer, local(2026, 11, 9, 7, 0, 1))
+    assert rhythm.rules.describe_fades() == []
+
+
+async def test_motion_does_not_end_a_fade_and_pinning_holds_it(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    freezer.move_to(local(2026, 11, 9, 6, 20))
+    rhythm = await setup_rhythm(options=wake_options())
+    await move_to(hass, freezer, local(2026, 11, 9, 6, 30, 1))
+    await motion(hass, True)
+    await motion(hass, False)
+    await move_to(hass, freezer, local(2026, 11, 9, 6, 36))
+    assert hass.states.get(BAD).state == "on"
+    # Holding Aufstehen holds the fade; when the hold ends, the fade runs on.
+    await rhythm.async_pin("aufstehen", "duration", timedelta(minutes=5))
+    await hass.async_block_till_done()
+    assert rhythm.rules.describe_fades()[0]["state"] == "paused"
+    assert last_on(lights)["transition"] == 1
+    await move_to(hass, freezer, local(2026, 11, 9, 6, 41, 30))
+    assert rhythm.rules.describe_fades()[0]["state"] == "running"
+    data = last_on(lights)
+    assert data["brightness_pct"] == 40 and 1000 <= data["transition"] <= 1110
+
+
+async def test_a_fade_goes_on_after_a_restart(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    freezer.move_to(local(2026, 11, 9, 6, 20))
+    await setup_rhythm(options=wake_options(), entry_id="r1")
+    await move_to(hass, freezer, local(2026, 11, 9, 6, 30, 1))
+    await hass.config_entries.async_unload("r1")
+    await hass.async_block_till_done()
+    freezer.move_to(local(2026, 11, 9, 6, 45))
+    lights.calls.clear()
+    assert await hass.config_entries.async_setup("r1")
+    await hass.async_block_till_done()
+    data = last_on(lights)
+    assert data["brightness_pct"] == 40 and 890 <= data["transition"] <= 900
+
+
+async def test_long_fades_go_in_parts_and_plain_lights_in_steps(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    attrs = dict(hass.states.get(REGAL).attributes)
+    attrs["supported_features"] = 0
+    hass.states.async_set(REGAL, "off", attrs)
+    freezer.move_to(local(2026, 11, 9, 11, 50))
+    options = rule_options(lights=[BAD, REGAL])
+    options["rules"][0]["rows"]["mittag"] = {"react": "on", "brightness": 10, "fade": True, "fade_to": 80}
+    await setup_rhythm(options=normalize_options(options))
+    await move_to(hass, freezer, local(2026, 11, 9, 12, 0, 1))
+    # Midday lasts seven hours, longer than one transition may take.
+    data = last_on(lights, BAD)
+    assert data["transition"] == 6000
+    assert 25 <= data["brightness_pct"] <= 27
+    plain = last_on(lights, REGAL)
+    assert "transition" not in plain and plain["brightness_pct"] == 10
+    await move_to(hass, freezer, local(2026, 11, 9, 12, 5))
+    assert 10 <= last_on(lights, REGAL)["brightness_pct"] <= 11
+    await move_to(hass, freezer, local(2026, 11, 9, 13, 40, 2))
+    data = last_on(lights, BAD)
+    assert 6000 - 5 <= data["transition"] <= 6000 and 42 <= data["brightness_pct"] <= 44
+
+
+async def test_actions_before_a_begin_and_at_an_end(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    climate = async_mock_service(hass, "climate", "set_temperature")
+    cover = async_mock_service(hass, "cover", "set_cover_position")
+    switch_off = async_mock_service(hass, "homeassistant", "turn_off")
+    freezer.move_to(local(2026, 11, 9, 5, 0))
+    options = rule_options(
+        actions=[
+            {"entity": "climate.bad", "tod": "aufstehen", "edge": "start", "offset": -60, "value": 22},
+            {"entity": COVER, "tod": "abend", "edge": "end", "offset": 0, "value": 0},
+            {"entity": "switch.heizdecke", "tod": "abend", "edge": "end", "offset": 10, "value": "off"},
+        ]
+    )
+    rhythm = await setup_rhythm(options=options)
+    await move_to(hass, freezer, local(2026, 11, 9, 5, 29))
+    assert not climate
+    await move_to(hass, freezer, local(2026, 11, 9, 5, 30, 1))
+    assert climate[-1].data == {"entity_id": "climate.bad", "temperature": 22.0}
+    await move_to(hass, freezer, local(2026, 11, 9, 5, 32))
+    assert len(climate) == 1
+    await move_to(hass, freezer, local(2026, 11, 9, 19, 0, 1))
+    await move_to(hass, freezer, local(2026, 11, 9, 22, 30, 1))
+    assert cover[-1].data == {"entity_id": COVER, "position": 0}
+    assert not switch_off
+    await move_to(hass, freezer, local(2026, 11, 9, 22, 40, 1))
+    assert switch_off[-1].data == {"entity_id": "switch.heizdecke"}
+    coming = {a["entity"]: a["next"] for a in rhythm.rules.describe_actions()}
+    assert coming["climate.bad"].startswith("2026-11-10T05:30")
+
+
+def test_devices_of_0_1_0b2_become_actions() -> None:
+    options = sample_options(
+        rules=[
+            {
+                "id": "wz",
+                "name": "Wohnzimmer",
+                "devices": [{"entity": COVER, "values": {"aufstehen": 100, "einschlafen": 0, "weg": 5}}],
+            }
+        ]
+    )
+    actions = options["rules"][0]["actions"]
+    assert {(a["tod"], a["value"], a["edge"], a["offset"]) for a in actions} == {
+        ("aufstehen", 100.0, "start", 0),
+        ("einschlafen", 0.0, "start", 0),
+    }
+    assert "devices" not in options["rules"][0]

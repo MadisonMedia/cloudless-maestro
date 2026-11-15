@@ -4,7 +4,11 @@
       "user": {
         "title": "Neuer Rhythmus",
         "description": "Ein Rhythmus ist ein eigener Tagesplan, zum Beispiel für die Wohnung, ein Terrarium oder ein Kinderzimmer. Tageszeiten, Tagesmodelle, Wochenplan und Regeln stellst du auf der Seite **Maestro** in der Seitenleiste ein.",
-        "data": { "name": "Name", "template": "Beginnen mit", "palette": "Farben" }
+        "data": {
+          "name": "Name",
+          "template": "Beginnen mit",
+          "palette": "Farben"
+        }
       }
     }
   },
@@ -40,19 +44,33 @@
   },
   "entity": {
     "sensor": {
-      "time_of_day": { "name": "Tageszeit" },
-      "model": { "name": "Tagesmodell" },
-      "next_change": { "name": "Nächster Wechsel" },
-      "progress": { "name": "Fortschritt" }
+      "time_of_day": {
+        "name": "Tageszeit"
+      },
+      "model": {
+        "name": "Tagesmodell"
+      },
+      "next_change": {
+        "name": "Nächster Wechsel"
+      },
+      "progress": {
+        "name": "Fortschritt"
+      }
     },
     "select": {
-      "choose": { "name": "Tageszeit wählen" }
+      "choose": {
+        "name": "Tageszeit wählen"
+      }
     },
     "binary_sensor": {
-      "overridden": { "name": "Übersteuert" }
+      "overridden": {
+        "name": "Übersteuert"
+      }
     },
     "switch": {
-      "rule_active": { "name": "Regel {name}" }
+      "rule_active": {
+        "name": "Regel {name}"
+      }
     }
   },
   "device_automation": {
@@ -76,10 +94,22 @@
       "name": "Tageszeit festsetzen",
       "description": "Setzt eine Tageszeit des heutigen Modells oder den Grundzustand bis zu einem gewählten Ende. Die aktuelle Tageszeit festzusetzen heißt halten. Eine neue Festsetzung ersetzt die vorige.",
       "fields": {
-        "time_of_day": { "name": "Tageszeit", "description": "Der Schlüssel der Tageszeit, zum Beispiel einschlafen. Die Seite Maestro zeigt jeden Schlüssel." },
-        "until": { "name": "Ende", "description": "Bis zum nächsten Wechsel: bis der Plan eine spätere Tageszeit beginnt oder der Tag endet. Eine Dauer oder Uhrzeit endet spätestens, wenn der nächste Tag beginnt." },
-        "duration": { "name": "Dauer", "description": "Für das Ende „Für eine Dauer“." },
-        "time": { "name": "Uhrzeit", "description": "Für das Ende „Bis Uhrzeit“." }
+        "time_of_day": {
+          "name": "Tageszeit",
+          "description": "Der Schlüssel der Tageszeit, zum Beispiel einschlafen. Die Seite Maestro zeigt jeden Schlüssel."
+        },
+        "until": {
+          "name": "Ende",
+          "description": "Bis zum nächsten Wechsel: bis der Plan eine spätere Tageszeit beginnt oder der Tag endet. Eine Dauer oder Uhrzeit endet spätestens, wenn der nächste Tag beginnt."
+        },
+        "duration": {
+          "name": "Dauer",
+          "description": "Für das Ende „Für eine Dauer“."
+        },
+        "time": {
+          "name": "Uhrzeit",
+          "description": "Für das Ende „Bis Uhrzeit“."
+        }
       }
     },
     "resume": {
@@ -90,17 +120,32 @@
       "name": "Tag anpassen",
       "description": "Ändert ein einzelnes Datum: ein anderes Tagesmodell, andere Startzeiten, ein anderes Tagesende. Nur was du nennst, ändert sich, der Rest folgt dem Modell.",
       "fields": {
-        "date": { "name": "Datum", "description": "Ohne Datum heute. Bevor ein Tag beginnt, ist heute der kommende Tag." },
-        "model": { "name": "Tagesmodell", "description": "Der Schlüssel eines anderen Tagesmodells für dieses Datum." },
-        "times": { "name": "Startzeiten", "description": "Tageszeiten mit neuer Startzeit, zum Beispiel einschlafen: 23:30. Mit +1 am Folgetag, zum Beispiel 01:00+1." },
-        "end": { "name": "Tagesende", "description": "Ein neues Tagesende, zum Beispiel 00:30+1." }
+        "date": {
+          "name": "Datum",
+          "description": "Ohne Datum heute. Bevor ein Tag beginnt, ist heute der kommende Tag."
+        },
+        "model": {
+          "name": "Tagesmodell",
+          "description": "Der Schlüssel eines anderen Tagesmodells für dieses Datum."
+        },
+        "times": {
+          "name": "Startzeiten",
+          "description": "Tageszeiten mit neuer Startzeit, zum Beispiel einschlafen: 23:30. Mit +1 am Folgetag, zum Beispiel 01:00+1."
+        },
+        "end": {
+          "name": "Tagesende",
+          "description": "Ein neues Tagesende, zum Beispiel 00:30+1."
+        }
       }
     },
     "clear_day": {
       "name": "Tagesanpassung entfernen",
       "description": "Das Datum folgt wieder dem Plan.",
       "fields": {
-        "date": { "name": "Datum", "description": "Ohne Datum heute." }
+        "date": {
+          "name": "Datum",
+          "description": "Ohne Datum heute."
+        }
       }
     },
     "refresh_calendars": {
@@ -111,15 +156,34 @@
       "name": "Regel umschalten",
       "description": "Schaltet die Leuchten einer Regel wie ein Taster der Regel: aus, wenn eine davon an ist, sonst an mit den Werten der aktuellen Tageszeit oder den gemerkten Werten.",
       "fields": {
-        "rule": { "name": "Regel", "description": "Der Name oder der Schlüssel der Regel." },
-        "mode": { "name": "Modus", "description": "Umschalten, oder immer an beziehungsweise aus." }
+        "rule": {
+          "name": "Regel",
+          "description": "Der Name oder der Schlüssel der Regel."
+        },
+        "mode": {
+          "name": "Modus",
+          "description": "Umschalten, oder immer an beziehungsweise aus."
+        }
       }
     },
     "forget": {
       "name": "Gedächtnis löschen",
       "description": "Vergisst, was von Hand eingestellt wurde. Die Leuchten gehen wieder mit den Werten der Tageszeit an.",
       "fields": {
-        "lights": { "name": "Leuchten", "description": "Ohne Leuchten alle Leuchten des Rhythmus." }
+        "lights": {
+          "name": "Leuchten",
+          "description": "Ohne Leuchten alle Leuchten des Rhythmus."
+        }
+      }
+    },
+    "resume_fade": {
+      "name": "Verlauf fortsetzen",
+      "description": "Setzt einen Verlauf über die Tageszeit fort, der von Hand unterbrochen wurde: Die Leuchte geht auf den Wert, den sie jetzt hätte, und läuft von dort bis zum Ende weiter.",
+      "fields": {
+        "lights": {
+          "name": "Leuchten",
+          "description": "Ohne Leuchten alle unterbrochenen Verläufe des Rhythmus."
+        }
       }
     }
   }

@@ -108,6 +108,7 @@ class Rhythm:
             "log": [],
             "lights": {},
             "pending": {},
+            "fades": [],
         }
         self.plan: Plan = self._make_plan()
         self.state: State | None = None
@@ -329,6 +330,28 @@ class Rhythm:
         item = self.time_of_day(key)
         return item["name"] if item else key
 
+    def next_edge(self, key: str, edge: str, offset_minutes: int, after: datetime) -> datetime | None:
+        """Return the next moment after a given one at which a time of day begins or ends, shifted by minutes.
+
+        It follows what actually happens, pins included, so a moment before a begin moves with the plan.
+        """
+        if self.timeline is None:
+            return None
+        offset = timedelta(minutes=offset_minutes)
+        segments = self.timeline.segments
+        for index, segment in enumerate(segments):
+            if segment.key != key:
+                continue
+            # Neighbouring segments of the same time of day count as one.
+            if edge == "start" and index and segments[index - 1].key == key:
+                continue
+            if edge == "end" and index + 1 < len(segments) and segments[index + 1].key == key:
+                continue
+            moment = (segment.start if edge == "start" else segment.end) + offset
+            if moment > after:
+                return moment
+        return None
+
     def choosable(self) -> list[str]:
         """Return what can be pinned now: the times of day in today's model and the base state."""
         assert self.state is not None
@@ -526,6 +549,7 @@ class Rhythm:
             "choosable": self.choosable(),
             "lights": self.rules.overridden(),
             "rules": self.rules.describe(),
+            "fades": self.rules.describe_fades(),
             "next_day_start": following.isoformat() if following else None,
             "days": [self.describe_day(today), self.describe_day(tomorrow)],
             "segments": [
@@ -547,6 +571,8 @@ class Rhythm:
             "days": snapshot["days"],
             "rules": snapshot["rules"],
             "lights": snapshot["lights"],
+            "fades": snapshot["fades"],
+            "actions": self.rules.describe_actions(),
             "log": list(reversed(self.data["log"])),
             "calendars": {
                 cal: {

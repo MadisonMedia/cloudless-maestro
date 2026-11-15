@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.1.0b3
+
+Restart Home Assistant after updating, then reload the browser or app once so the page loads anew. Devices set up in 0.1.0b2 become actions at the start of their time of day and keep working.
+
+### Added
+
+- **Wake-up light: fade to the end.** A row can run its lights from one brightness to another over the whole time of day, by default to the next time of day's brightness, white tones included. Lights and Crescendo objects fade by themselves; long fades go in parts, lights without their own fade in small steps. A change by hand stops the fade, **Resume** in the card or the action `cloudless_maestro.resume_fade` continues it. Pinning the running time of day holds it, a moved end is followed, and a restart goes on where the fade is.
+- **Actions at a chosen moment:** at, before or after the start or the end of a time of day, with an offset in minutes, for example the heating 60 minutes before wake-up or the blind at the end of the evening.
+- **A search with kinds and rooms** for lights, triggers and devices, as in Crescendo. Crescendo objects come first and are chosen by default. Contacts and other binary sensors can be triggers.
+- The diagnostics list running fades and the coming actions.
+
+### Changed
+
+- The rules' defaults stand in rows, each with what it means.
+- “+1” is now “after midnight”, and the timeline names midnight.
+- Explanations use the full width of the page.
+- The column “Off after” is called “Time until off” and explains when it counts: from the moment no sensor sees anybody, or from switching on with a button.
+- A Crescendo object's buttons are suggestions in the position field; a rule with only Crescendo objects shows no color column.
+
+### Fixed
+
+- Icons chosen with Home Assistant's icon picker were not saved. The picker reports its choice only on itself; each picker now has its own listener.
+- Maestro's own sensors were offered as triggers.
+
 ## 0.1.0b2
 
 Restart Home Assistant after updating, then reload the browser or app once so the page loads anew. Settings from 0.1.0b1 keep working; the transition per time of day became a default of the rules.

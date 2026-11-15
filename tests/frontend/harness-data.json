@@ -1,8 +1,8 @@
 {
  "snapshot": {
-  "entry_id": "01M70R1D603PSM9AVPQ020SFQJ",
+  "entry_id": "01M70R1D60DH3PMAYGH8QXAY83",
   "title": "Wohnung",
-  "device_id": "a0539669f351a006a9e997f46fd52fdf",
+  "device_id": "bf02c6f38a0252b0dccbff908419a6c8",
   "now": "2026-11-09T19:10:00+01:00",
   "base": {
    "key": "nacht",
@@ -108,6 +108,22 @@
     "pending": {},
     "locked_until": null,
     "motion": null
+   }
+  ],
+  "fades": [
+   {
+    "rule": "bad",
+    "rule_name": "Bad",
+    "light": "light.bad",
+    "name": "Bad",
+    "tod": "abend",
+    "state": "running",
+    "begin": 20.0,
+    "target": 60.0,
+    "start": "2026-11-09T18:30:00+01:00",
+    "end": "2026-11-09T23:00:00+01:00",
+    "value": 25.9,
+    "progress": 15
    }
   ],
   "next_day_start": "2026-11-10T06:30:00+01:00",
@@ -292,9 +308,9 @@
  },
  "rhythms": [
   {
-   "entry_id": "01M70R1D603PSM9AVPQ020SFQJ",
+   "entry_id": "01M70R1D60DH3PMAYGH8QXAY83",
    "title": "Wohnung",
-   "device_id": "a0539669f351a006a9e997f46fd52fdf",
+   "device_id": "bf02c6f38a0252b0dccbff908419a6c8",
    "options": {
     "base": {
      "key": "nacht",
@@ -442,7 +458,7 @@
      "sat": "wochenende",
      "sun": "wochenende"
     },
-    "version": 2,
+    "version": 3,
     "calendar_links": [
      {
       "calendar": "calendar.feiertage",
@@ -489,18 +505,22 @@
         "transition": null,
         "memory": null,
         "forget": false,
-        "lux_below": null
+        "lux_below": null,
+        "fade": false,
+        "fade_to": null
        },
        "aufstehen": {
         "react": "on",
-        "brightness": 50,
-        "after": 3,
+        "brightness": 5,
+        "fade": true,
         "color": null,
+        "after": null,
         "begin": "follow_free",
         "transition": null,
         "memory": null,
         "forget": false,
-        "lux_below": null
+        "lux_below": null,
+        "fade_to": null
        },
        "morgen": {
         "react": "on",
@@ -511,7 +531,9 @@
         "transition": null,
         "memory": null,
         "forget": false,
-        "lux_below": null
+        "lux_below": null,
+        "fade": false,
+        "fade_to": null
        },
        "mittag": {
         "react": "on",
@@ -522,13 +544,17 @@
         "transition": null,
         "memory": null,
         "forget": false,
-        "lux_below": null
+        "lux_below": null,
+        "fade": false,
+        "fade_to": null
        },
        "abend": {
         "react": "on",
-        "brightness": 60,
-        "after": 3,
+        "brightness": 20,
+        "fade": true,
+        "fade_to": 60,
         "color": null,
+        "after": null,
         "begin": "follow_free",
         "transition": null,
         "memory": null,
@@ -544,16 +570,34 @@
         "transition": null,
         "memory": null,
         "forget": false,
-        "lux_below": null
+        "lux_below": null,
+        "fade": false,
+        "fade_to": null
        }
       },
+      "actions": [
+       {
+        "entity": "climate.heizung_bad",
+        "tod": "aufstehen",
+        "edge": "start",
+        "offset": -60,
+        "value": 23.0
+       },
+       {
+        "entity": "climate.heizung_bad",
+        "tod": "morgen",
+        "edge": "end",
+        "offset": 0,
+        "value": 19.0
+       }
+      ],
       "active": true,
       "manual": true,
       "manual_after": "same",
       "external_on": "apply",
       "warn": null,
       "lock": null,
-      "devices": []
+      "fade_hold": true
      },
      {
       "id": "wohnzimmer",
@@ -573,7 +617,9 @@
         "transition": null,
         "memory": null,
         "forget": false,
-        "lux_below": null
+        "lux_below": null,
+        "fade": false,
+        "fade_to": null
        },
        "aufstehen": {
         "react": "on",
@@ -586,7 +632,9 @@
         "transition": null,
         "memory": null,
         "forget": false,
-        "lux_below": null
+        "lux_below": null,
+        "fade": false,
+        "fade_to": null
        },
        "morgen": {
         "react": "on",
@@ -599,7 +647,9 @@
         "transition": null,
         "memory": null,
         "forget": false,
-        "lux_below": null
+        "lux_below": null,
+        "fade": false,
+        "fade_to": null
        },
        "mittag": {
         "react": "on",
@@ -612,7 +662,9 @@
         "transition": null,
         "memory": null,
         "forget": false,
-        "lux_below": null
+        "lux_below": null,
+        "fade": false,
+        "fade_to": null
        },
        "abend": {
         "react": "on",
@@ -625,7 +677,9 @@
         "transition": null,
         "memory": null,
         "forget": false,
-        "lux_below": null
+        "lux_below": null,
+        "fade": false,
+        "fade_to": null
        },
        "einschlafen": {
         "react": "on",
@@ -638,32 +692,46 @@
         "transition": null,
         "memory": null,
         "forget": false,
-        "lux_below": null
+        "lux_below": null,
+        "fade": false,
+        "fade_to": null
        }
       },
-      "devices": [
-       {
-        "entity": "cover.rollo_wohnzimmer",
-        "values": {
-         "aufstehen": 100.0,
-         "abend": 30.0,
-         "einschlafen": 0.0
-        }
-       },
+      "actions": [
        {
         "entity": "climate.heizung_wohnzimmer",
-        "values": {
-         "aufstehen": 21.0,
-         "mittag": 20.0,
-         "abend": 21.5,
-         "einschlafen": 18.0
-        }
+        "tod": "aufstehen",
+        "edge": "start",
+        "offset": -60,
+        "value": 21.0
+       },
+       {
+        "entity": "cover.rollo_wohnzimmer",
+        "tod": "aufstehen",
+        "edge": "start",
+        "offset": 0,
+        "value": 100.0
        },
        {
         "entity": "scene.gemuetlich",
-        "values": {
-         "abend": "on"
-        }
+        "tod": "abend",
+        "edge": "start",
+        "offset": 0,
+        "value": "on"
+       },
+       {
+        "entity": "cover.rollo_wohnzimmer",
+        "tod": "abend",
+        "edge": "end",
+        "offset": 0,
+        "value": 0.0
+       },
+       {
+        "entity": "climate.heizung_wohnzimmer",
+        "tod": "einschlafen",
+        "edge": "start",
+        "offset": 15,
+        "value": 18.0
        }
       ],
       "active": true,
@@ -673,13 +741,14 @@
       "manual_after": "same",
       "external_on": "apply",
       "warn": null,
-      "lock": null
+      "lock": null,
+      "fade_hold": true
      }
     ]
    },
    "entities": {
-    "overridden": "binary_sensor.wohnung_ubersteuert",
     "choose": "select.wohnung_tageszeit_wahlen",
+    "overridden": "binary_sensor.wohnung_ubersteuert",
     "time_of_day": "sensor.wohnung_tageszeit",
     "model": "sensor.wohnung_tagesmodell",
     "next_change": "sensor.wohnung_nachster_wechsel",
@@ -1227,6 +1296,94 @@
     "on": false
    }
   ],
+  "fades": [
+   {
+    "rule": "bad",
+    "rule_name": "Bad",
+    "light": "light.bad",
+    "name": "Bad",
+    "tod": "abend",
+    "state": "running",
+    "begin": 20.0,
+    "target": 60.0,
+    "start": "2026-11-09T18:30:00+01:00",
+    "end": "2026-11-09T23:00:00+01:00",
+    "value": 25.9,
+    "progress": 15
+   }
+  ],
+  "actions": [
+   {
+    "rule": "bad",
+    "rule_name": "Bad",
+    "entity": "climate.heizung_bad",
+    "tod": "aufstehen",
+    "edge": "start",
+    "offset": -60,
+    "value": 23.0,
+    "next": "2026-11-10T05:30:00+01:00"
+   },
+   {
+    "rule": "bad",
+    "rule_name": "Bad",
+    "entity": "climate.heizung_bad",
+    "tod": "morgen",
+    "edge": "end",
+    "offset": 0,
+    "value": 19.0,
+    "next": null
+   },
+   {
+    "rule": "wohnzimmer",
+    "rule_name": "Wohnzimmer",
+    "entity": "climate.heizung_wohnzimmer",
+    "tod": "aufstehen",
+    "edge": "start",
+    "offset": -60,
+    "value": 21.0,
+    "next": "2026-11-10T05:30:00+01:00"
+   },
+   {
+    "rule": "wohnzimmer",
+    "rule_name": "Wohnzimmer",
+    "entity": "cover.rollo_wohnzimmer",
+    "tod": "aufstehen",
+    "edge": "start",
+    "offset": 0,
+    "value": 100.0,
+    "next": null
+   },
+   {
+    "rule": "wohnzimmer",
+    "rule_name": "Wohnzimmer",
+    "entity": "scene.gemuetlich",
+    "tod": "abend",
+    "edge": "start",
+    "offset": 0,
+    "value": "on",
+    "next": null
+   },
+   {
+    "rule": "wohnzimmer",
+    "rule_name": "Wohnzimmer",
+    "entity": "cover.rollo_wohnzimmer",
+    "tod": "abend",
+    "edge": "end",
+    "offset": 0,
+    "value": 0.0,
+    "next": null
+   },
+   {
+    "rule": "wohnzimmer",
+    "rule_name": "Wohnzimmer",
+    "entity": "climate.heizung_wohnzimmer",
+    "tod": "einschlafen",
+    "edge": "start",
+    "offset": 15,
+    "value": 18.0,
+    "next": "2026-11-09T23:15:00+01:00"
+   }
+  ],
   "log": [
    {
     "at": "2026-11-09T19:10:00+01:00",
@@ -1391,6 +1548,14 @@
     "current_position": 100
    }
   },
+  "climate.heizung_bad": {
+   "entity_id": "climate.heizung_bad",
+   "state": "heat",
+   "attributes": {
+    "friendly_name": "Heizung Bad",
+    "temperature": 19
+   }
+  },
   "climate.heizung_wohnzimmer": {
    "entity_id": "climate.heizung_wohnzimmer",
    "state": "heat",
@@ -1439,7 +1604,7 @@
     "today": "2026-11-09",
     "pinned": false,
     "planned": "abend",
-    "rhythm": "01M70R1D603PSM9AVPQ020SFQJ",
+    "rhythm": "01M70R1D60DH3PMAYGH8QXAY83",
     "device_class": "enum",
     "icon": "mdi:weather-sunset-down",
     "friendly_name": "Wohnung Tageszeit"
@@ -1482,9 +1647,9 @@
   }
  },
  "pinned": {
-  "entry_id": "01M70R1D603PSM9AVPQ020SFQJ",
+  "entry_id": "01M70R1D60DH3PMAYGH8QXAY83",
   "title": "Wohnung",
-  "device_id": "a0539669f351a006a9e997f46fd52fdf",
+  "device_id": "bf02c6f38a0252b0dccbff908419a6c8",
   "now": "2026-11-09T19:10:00+01:00",
   "base": {
    "key": "nacht",
@@ -1598,6 +1763,7 @@
     "motion": null
    }
   ],
+  "fades": [],
   "next_day_start": "2026-11-10T06:30:00+01:00",
   "days": [
    {

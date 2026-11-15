@@ -58,7 +58,7 @@ button { cursor: pointer; }
 .sub { font-size: 15px; font-weight: 600; }
 .info { border: 1px solid var(--line); background: transparent; color: var(--muted); width: 20px; height: 20px; border-radius: 50%; padding: 0; font: italic 600 12px/1 Georgia, "Times New Roman", serif; display: inline-grid; place-items: center; flex: none; }
 .info[aria-expanded="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.note { font-size: 13.5px; color: var(--muted); max-width: 78ch; }
+.note { font-size: 13.5px; color: var(--muted); }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .row.space { justify-content: space-between; }
 .grow { flex: 1 1 auto; }
@@ -113,7 +113,14 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .tbl tr.open > td { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
 .tbl tr.detail td { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); padding: 4px 10px 12px 56px; }
 .tbl tr.base td { background: color-mix(in srgb, var(--well) 60%, transparent); }
-.tbl select.field { max-width: 230px; }
+.rowtbl select.field { max-width: 172px; }
+.tbl input.num { width: 66px; padding-right: 4px; }
+.tbl input.num[list] { width: 94px; }
+.tbl input.num.sm { width: 58px; }
+.rule .tbl td, .rule .tbl th { padding-left: 6px; padding-right: 6px; }
+.tbl td.acts { white-space: nowrap; }
+.tbl td.acts .more { padding: 4px 2px 4px 6px; }
+.tbl .presets button { padding: 2px 5px; }
 .cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .cell b { font-weight: 600; }
 .opt { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); white-space: nowrap; }
@@ -179,11 +186,19 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .presets button:hover { color: var(--ink); border-color: var(--accent); }
 .pick { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: grid; gap: 8px; background: color-mix(in srgb, var(--well) 40%, transparent); }
 .picklist { display: grid; max-height: 280px; overflow: auto; border-top: 1px solid var(--line); }
-.picklist button { border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; padding: 7px 8px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; }
+.picklist button { border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; padding: 8px 10px; display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; color: var(--ink); }
+.picklist button:last-child { border-bottom: 0; }
 .picklist button:hover { background: var(--accent-soft); }
-.picklist .pname { font-weight: 500; }
-.picklist .pmeta { font-size: 12px; color: var(--muted); grid-column: 1; }
-.picklist .pstate { font-size: 12px; color: var(--muted); grid-row: 1 / span 2; }
+.picklist ha-icon { color: var(--muted); }
+.picklist .pmain { display: grid; gap: 1px; min-width: 0; }
+.picklist .pname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.picklist .pmeta { font-size: 12px; color: var(--muted); }
+.picklist .padd { font-size: 12.5px; color: var(--accent); font-weight: 600; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.light ha-icon { color: var(--muted); }
+.defs .r { grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) auto; }
+.defs .r .meta { font-size: 13px; }
+.defs .r .cell { justify-content: flex-end; }
 .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .fact { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 4px; }
 .fact h3 { font-size: 13px; font-weight: 500; color: var(--muted); }
@@ -243,6 +258,7 @@ const AXIS_MIN = 0,
   AXIS_MAX = 30 * 60;
 const DEVICE_DOMAINS = ["cover", "climate", "media_player", "fan", "switch", "input_boolean", "number", "input_number", "scene", "script"];
 const DEVICE_UNITS = { cover: "%", climate: "°", media_player: "%", fan: "%", number: "", input_number: "" };
+const DOMAIN_ICON = { cover: "mdi:window-shutter", climate: "mdi:thermostat", media_player: "mdi:speaker", fan: "mdi:fan", switch: "mdi:toggle-switch-outline", input_boolean: "mdi:toggle-switch-outline", scene: "mdi:palette-outline", script: "mdi:script-text-outline", number: "mdi:numeric", input_number: "mdi:numeric", event: "mdi:gesture-tap-button", input_button: "mdi:gesture-tap-button", binary_sensor: "mdi:door-sliding", sensor: "mdi:brightness-5" };
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
 class MaestroPanel extends HTMLElement {
@@ -270,7 +286,6 @@ class MaestroPanel extends HTMLElement {
     this._undo = [];
     this._snap = null;
     this._pick = null;
-    this._pickQuery = "";
     this._creating = false;
     this._import = null;
     this._sidebar = true;
@@ -279,7 +294,6 @@ class MaestroPanel extends HTMLElement {
     r.addEventListener("click", (e) => this._onClick(e));
     r.addEventListener("change", (e) => this._onChange(e));
     r.addEventListener("input", (e) => this._onInput(e));
-    r.addEventListener("value-changed", (e) => this._onPicker(e));
     r.addEventListener("pointerdown", (e) => this._onDown(e));
     r.addEventListener("pointermove", (e) => this._onMove(e));
     r.addEventListener("pointerup", (e) => this._onUp(e));
@@ -741,7 +755,7 @@ class MaestroPanel extends HTMLElement {
           <span class="row"><button class="btn" data-act="copy-model">${esc(t("Copy", "Kopieren"))}</button>
           ${confirming ? `<button class="btn danger" data-act="delete-model">${esc(t("Delete", "Löschen"))}</button><button class="btn" data-act="confirm" data-v="">${esc(t("Keep", "Behalten"))}</button>` : `<button class="btn" data-act="confirm" data-v="model:${esc(model.key)}" ${usedIn ? `disabled title="${esc(t("Used in the week plan or a calendar link", "Wird im Wochenplan oder in einer Kalender-Verknüpfung genutzt"))}"` : ""}>${esc(t("Delete", "Löschen"))}</button>`}</span></div>
         <div class="axis" id="axis"></div>
-        ${this._infoText("models", t("Drag the marks of fixed times. Dashed marks follow the sun. A time after midnight belongs to the same day and shows +1.", "Ziehe die Markierungen fester Zeiten. Gestrichelte folgen der Sonne. Eine Zeit nach Mitternacht gehört zum selben Tag und zeigt +1."))}
+        ${this._infoText("models", t("Drag the marks of fixed times. Dashed marks follow the sun. A time after midnight, such as 01:00 at a party, still belongs to this day: tick “after midnight” for it.", "Ziehe die Markierungen fester Zeiten. Gestrichelte folgen der Sonne. Eine Zeit nach Mitternacht, etwa 01:00 bei einer Party, gehört noch zu diesem Tag: Setze dafür „nach Mitternacht“."))}
         <div class="notice calm" id="dropNote" hidden></div>
         <div class="wrapx"><table class="tbl" id="entries">${this._entryRows(model)}</table></div>
         <div class="add">${free.length ? `<select class="field" id="addEntry" aria-label="${esc(t("Time of day", "Tageszeit"))}">${free.map((x) => `<option value="${esc(x.key)}">${esc(x.name)}</option>`).join("")}</select><button class="link" data-act="add-entry">${esc(t("+ Add to this model", "+ In dieses Modell aufnehmen"))}</button>` : `<span class="tpl">${esc(t("All times of day are in this model.", "Alle Tageszeiten sind in diesem Modell."))}</span>`}</div>`;
@@ -755,7 +769,7 @@ class MaestroPanel extends HTMLElement {
   _specEditor(spec, ref) {
     const t = this._t;
     const kind = `<select class="field" data-entry="${ref}" data-field="kind" aria-label="${esc(t("Kind", "Art"))}"><option value="fixed"${spec.kind === "fixed" ? " selected" : ""}>${esc(t("Fixed", "Fest"))}</option><option value="sun"${spec.kind === "sun" ? " selected" : ""}>${esc(t("Sun", "Sonne"))}</option></select>`;
-    const plus = `<label class="opt"><input type="checkbox" data-entry="${ref}" data-field="next_day"${spec.next_day ? " checked" : ""}> +1</label>`;
+    const plus = `<label class="opt" title="${esc(t("The time lies after midnight and still belongs to this day, for example 01:00 at a party.", "Die Uhrzeit liegt nach Mitternacht und gehört noch zu diesem Tag, zum Beispiel 01:00 bei einer Party."))}"><input type="checkbox" data-entry="${ref}" data-field="next_day"${spec.next_day ? " checked" : ""}> ${esc(t("after midnight", "nach Mitternacht"))}</label>`;
     if (spec.kind === "fixed") {
       return `<span class="spec">${kind}<input class="field time" type="time" data-entry="${ref}" data-field="time" value="${esc(spec.time)}" aria-label="${esc(t("Time", "Uhrzeit"))}">${plus}</span>`;
     }
@@ -767,7 +781,7 @@ class MaestroPanel extends HTMLElement {
     const bounds = open
       ? `<label class="opt">${esc(t("earliest", "frühestens"))} <input class="field time" type="time" data-entry="${ref}" data-field="earliest" value="${esc(spec.earliest || "")}"></label>
          <label class="opt">${esc(t("latest", "spätestens"))} <input class="field time" type="time" data-entry="${ref}" data-field="latest" value="${esc(spec.latest || "")}"></label>${plus}`
-      : `<span class="sum">· ${esc(spec.earliest || "—")} ${esc(t("to", "bis"))} ${esc(spec.latest || "—")}${spec.next_day ? " +1" : ""}</span>`;
+      : `<span class="sum">· ${esc(spec.earliest || "—")} ${esc(t("to", "bis"))} ${esc(spec.latest || "—")}${spec.next_day ? ` ${esc(t("after midnight", "nach Mitternacht"))}` : ""}</span>`;
     return `<span class="spec">${kind}<select class="field" data-entry="${ref}" data-field="event" aria-label="${esc(t("Sun event", "Sonnenstand"))}">${events}</select>
       <span class="opt"><input class="field num" type="number" min="-720" max="720" step="5" data-entry="${ref}" data-field="offset" value="${esc(spec.offset)}" aria-label="${esc(t("Offset in minutes", "Versatz in Minuten"))}"> min</span>${bounds}${this._more(id, t("Bounds", "Grenzen"))}</span>`;
   }
@@ -809,7 +823,7 @@ class MaestroPanel extends HTMLElement {
         const iso = key ? starts[key] : res.end;
         if (iso) {
           const mins = this._axisMinutes(iso, res.day);
-          td.textContent = `${fmtTime(this._hass, iso)}${mins >= 1440 ? " +1" : ""}`;
+          td.textContent = `${fmtTime(this._hass, iso)}${mins >= 1440 ? ` ${t("after midnight", "nach Mitternacht")}` : ""}`;
           td.classList.remove("off");
         } else {
           td.textContent = res.entries.length || key ? t("does not happen", "fällt aus") : "—";
@@ -862,14 +876,14 @@ class MaestroPanel extends HTMLElement {
       hours = "";
     for (let h = 3; h < 30; h += 3) {
       grid += `<div class="grid" style="left:${pos(h * 60)}%"></div>`;
-      hours += `<span class="hour" style="left:${pos(h * 60)}%">${h % 24}${h >= 24 ? "+1" : ""}</span>`;
+      hours += `<span class="hour" style="left:${pos(h * 60)}%">${h === 24 ? esc(this._t("midnight", "Mitternacht")) : h % 24}</span>`;
     }
     const handles = marks
       .map((mark) => {
         const spec = mark.key ? model.entries.find((e) => e.tod === mark.key)?.at : model.end;
         const sun = spec?.kind === "sun";
         const drag = this._drag?.key === mark.key;
-        return `<div class="handle${sun ? " sun" : ""}${drag ? " drag" : ""}" data-handle="${esc(mark.key)}" style="left:${pos(mark.m)}%" title="${esc(mark.key ? this._look(mark.key).name : this._w.base.name)}"></div>${drag ? `<span class="tip" style="left:${pos(mark.m)}%">${clockOf(mark.m)}${mark.m >= 1440 ? " +1" : ""}</span>` : ""}`;
+        return `<div class="handle${sun ? " sun" : ""}${drag ? " drag" : ""}" data-handle="${esc(mark.key)}" style="left:${pos(mark.m)}%" title="${esc(mark.key ? this._look(mark.key).name : this._w.base.name)}"></div>${drag ? `<span class="tip" style="left:${pos(mark.m)}%">${clockOf(mark.m)}${mark.m >= 1440 ? ` ${esc(this._t("after midnight", "nach Mitternacht"))}` : ""}</span>` : ""}`;
       })
       .join("");
     box.innerHTML = `<div class="bar">${segs}${grid}</div>${hours}${handles}`;
@@ -914,7 +928,7 @@ class MaestroPanel extends HTMLElement {
   _lightInfo(entityId) {
     const t = this._t;
     const st = this._hass.states[entityId];
-    if (!st) return { name: entityId, kind: t("not found", "nicht gefunden"), state: "", crescendo: false, color: false, kelvin: false, dimmable: false };
+    if (!st) return { name: entityId, kind: t("not found", "nicht gefunden"), state: "", crescendo: false, color: false, kelvin: false, dimmable: false, buttons: [] };
     const a = st.attributes;
     const modes = a.supported_color_modes || [];
     const crescendo = !!a.crescendo;
@@ -926,13 +940,13 @@ class MaestroPanel extends HTMLElement {
     if (!crescendo && !group) kind += ` · ${color && kelvin ? t("colors and white tones", "Farben und Weißtöne") : color ? t("colors", "Farben") : kelvin ? t("white tones", "Weißtöne") : dimmable ? t("dimming only", "nur Dimmen") : t("on/off only", "nur An/Aus")}`;
     const pct = st.state === "on" ? (crescendo ? Math.round(a.position ?? 0) : a.brightness != null ? Math.round((a.brightness * 100) / 255) : 100) : null;
     const state = st.state === "on" ? `${t("On", "An")}${dimmable ? `, ${pct} %` : ""}` : st.state === "off" ? t("Off", "Aus") : st.state;
-    return { name: friendly(this._hass, entityId), kind, state, crescendo, color, kelvin, dimmable, buttons: crescendo ? a.buttons || [] : [] };
+    return { name: friendly(this._hass, entityId), kind, state, crescendo, group, color, kelvin, dimmable, buttons: crescendo ? a.buttons || [] : [] };
   }
 
   _ruleSummary(rule) {
     const t = this._t;
     const trig = [rule.motion.length ? t("motion", "Bewegung") : null, rule.buttons.length ? t("button", "Taster") : null, rule.manual ? t("by hand", "von Hand") : null].filter(Boolean).join(" · ") || t("without triggers", "ohne Auslöser");
-    const names = [...rule.lights, ...rule.devices.map((d) => d.entity)].map((e) => friendly(this._hass, e));
+    const names = [...rule.lights, ...new Set(rule.actions.map((a) => a.entity))].map((e) => friendly(this._hass, e));
     return `${names.join(", ") || t("no lights yet", "noch keine Leuchten")} · ${trig}`;
   }
 
@@ -940,7 +954,7 @@ class MaestroPanel extends HTMLElement {
     const t = this._t;
     const w = this._w;
     return `<section class="sec" id="sec-rules"><div class="hrow"><h2>${esc(t("Rules", "Regeln"))}</h2>${this._info("rules")}</div>
-      ${this._infoText("rules", t("A rule says, for each time of day, what its lights do: when they come on, how bright and in which color, when they go off. It can also give devices a value when a time of day begins, such as a blind or the heating, or start a scene. When somebody changes a light by hand, Maestro remembers that for the memory time. The order counts when a light is in several rules.", "Eine Regel legt pro Tageszeit fest, was ihre Leuchten tun: wann sie angehen, wie hell und in welcher Farbe, wann sie ausgehen. Dazu kann sie Geräten beim Beginn einer Tageszeit einen Wert geben, etwa einem Rollo oder der Heizung, oder eine Szene starten. Ändert jemand eine Leuchte von Hand, merkt sich Maestro das für die Merkdauer. Die Reihenfolge zählt, wenn eine Leuchte in mehreren Regeln steht."))}
+      ${this._infoText("rules", t("A rule says, for each time of day, what its lights do: when they come on, how bright and in which color, when they go off. A light can also run up over a whole time of day, as a wake-up light. And a rule can give devices a value before, at or after the start or the end of a time of day, such as the heating an hour before wake-up. When somebody changes a light by hand, Maestro remembers that for the memory time. The order counts when a light is in several rules.", "Eine Regel legt pro Tageszeit fest, was ihre Leuchten tun: wann sie angehen, wie hell und in welcher Farbe, wann sie ausgehen. Eine Leuchte kann auch über eine ganze Tageszeit hochdimmen, als Lichtwecker. Und eine Regel kann Geräten vor, bei oder nach Beginn oder Ende einer Tageszeit einen Wert geben, etwa der Heizung eine Stunde vor dem Aufstehen. Ändert jemand eine Leuchte von Hand, merkt sich Maestro das für die Merkdauer. Die Reihenfolge zählt, wenn eine Leuchte in mehreren Regeln steht."))}
       <div style="display:grid;gap:10px">${w.rules.map((r, i) => this._ruleHTML(r, i)).join("")}</div>
       <div class="add"><input class="field" id="newRule" placeholder="${esc(t("New rule", "Neue Regel"))}" aria-label="${esc(t("Name of the new rule", "Name der neuen Regel"))}" style="width:200px"><button class="btn" data-act="add-rule">${esc(t("Add", "Hinzufügen"))}</button>
         ${w.rules.length ? `<span class="tpl">${esc(t("or like another rule:", "oder wie eine andere Regel:"))}</span><span class="chips">${w.rules.map((r) => `<button class="chip" data-act="copy-rule" data-id="${esc(r.id)}">${esc(r.name)}</button>`).join("")}</span>` : ""}</div>
@@ -964,51 +978,53 @@ class MaestroPanel extends HTMLElement {
       .map((e) => {
         const li = this._lightInfo(e);
         const also = w.rules.filter((r) => r !== rule && r.lights.includes(e)).map((r) => r.name);
-        return `<div class="light"><b>${esc(li.name)}</b><span class="kind">${esc(li.kind)}</span>${also.length ? `<span class="pill soft">${esc(t("also in", "auch in"))} ${esc(also.join(", "))}</span>` : ""}<span class="state">${esc(li.state)}</span><button class="x" data-act="rm-light" data-rule="${esc(rule.id)}" data-e="${esc(e)}" aria-label="${esc(t("Remove", "Entfernen"))}">×</button></div>`;
+        return `<div class="light">${icon(li.crescendo ? "mdi:tune-vertical-variant" : li.group ? "mdi:lightbulb-group-outline" : "mdi:lightbulb-outline", 18)}<b>${esc(li.name)}</b><span class="kind">${esc(li.kind)}</span>${also.length ? `<span class="pill soft">${esc(t("also in", "auch in"))} ${esc(also.join(", "))}</span>` : ""}<span class="state">${esc(li.state)}</span><button class="x" data-act="rm-light" data-rule="${esc(rule.id)}" data-e="${esc(e)}" aria-label="${esc(t("Remove", "Entfernen"))}">×</button></div>`;
       })
       .join("");
     const picker = (kind) => (this._pick?.rule === rule.id && this._pick.kind === kind ? this._pickerHTML(rule, kind) : "");
-    const devs = rule.devices;
     const body = `<div class="body">
       <div class="row space"><input class="field" data-rule="${esc(rule.id)}" data-f="name" value="${esc(rule.name)}" aria-label="${esc(t("Name of the rule", "Name der Regel"))}" style="width:220px;font-weight:600">
         <span class="row"><button class="btn" data-act="copy-rule" data-id="${esc(rule.id)}">${esc(t("Copy rule", "Regel kopieren"))}</button>
         ${confirming ? `<button class="btn danger" data-act="delete-rule" data-id="${esc(rule.id)}">${esc(t("Delete", "Löschen"))}</button><button class="btn" data-act="confirm" data-v="">${esc(t("Keep", "Behalten"))}</button>` : `<button class="btn danger" data-act="confirm" data-v="rule:${esc(rule.id)}">${esc(t("Delete rule", "Regel löschen"))}</button>`}</span></div>
       <div><div class="hrow"><span class="sub">${esc(t("Lights", "Leuchten"))}</span>${this._info(`lights-${rule.id}`)}</div>
-        ${this._infoText(`lights-${rule.id}`, t("One or more lights, also light groups and Crescendo objects. A light may be in several rules; the newest command wins. A Crescendo object takes a position from 1 to 100, its colors come from its stops.", "Eine oder mehrere Leuchten, auch Lichtgruppen und Crescendo-Objekte. Eine Leuchte darf in mehreren Regeln stehen; der neueste Befehl gewinnt. Bei einem Crescendo-Objekt gilt die Position 1 bis 100, Farben kommen aus seinen Stufen."))}
-        <div>${lights}<div class="add"><button class="link" data-act="pick" data-rule="${esc(rule.id)}" data-kind="light">${esc(t("+ Add a light", "+ Leuchte hinzufügen"))}</button></div>${picker("light")}</div></div>
+        ${this._infoText(`lights-${rule.id}`, t("Crescendo objects, single lights and light groups. A light may be in several rules; the newest command wins. A Crescendo object takes a position from 1 to 100, its colors come from its stops.", "Crescendo-Objekte, einzelne Leuchten und Lichtgruppen. Eine Leuchte darf in mehreren Regeln stehen; der neueste Befehl gewinnt. Bei einem Crescendo-Objekt gilt die Position 1 bis 100, Farben kommen aus seinen Stufen."))}
+        <div>${lights}<div class="add"><button class="link" data-act="pick" data-rule="${esc(rule.id)}" data-kind="light">${esc(t("+ Add a light or Crescendo object", "+ Leuchte oder Crescendo-Objekt hinzufügen"))}</button></div>${picker("light")}</div></div>
       <div><div class="hrow"><span class="sub">${esc(t("Triggers", "Auslöser"))}</span>${this._info(`trig-${rule.id}`)}</div>
-        ${this._infoText(`trig-${rule.id}`, t("Motion switches on and, after the time in the row, off again. A button toggles. “By hand” means: when a light goes on without Maestro, it gets the values of the time of day or its remembered values. A light sensor only limits switching on.", "Bewegung schaltet ein und nach der Zeit in der Zeile wieder aus. Ein Taster schaltet um. „Von Hand“ heißt: Geht eine Leuchte an, ohne dass Maestro sie eingeschaltet hat, bekommt sie die Werte der Tageszeit oder ihre gemerkten Werte. Ein Helligkeitssensor begrenzt nur das Einschalten."))}
-        <div class="trig">
-          <span class="lbl">${esc(t("Motion or presence", "Bewegung oder Präsenz"))}</span><span class="chips">${rule.motion.map((m) => `<span class="tag">${esc(friendly(this._hass, m))}<button class="x" data-act="rm-motion" data-rule="${esc(rule.id)}" data-e="${esc(m)}" aria-label="${esc(t("Remove", "Entfernen"))}">×</button></span>`).join("")}<button class="chip" data-act="pick" data-rule="${esc(rule.id)}" data-kind="motion">${esc(t("+ Sensor", "+ Melder"))}</button></span>
-          ${picker("motion") ? `<span></span>${picker("motion")}` : ""}
-          <span class="lbl">${esc(t("Buttons", "Taster"))}</span><span class="chips">${rule.buttons
-            .map((b, bi) => {
-              const types = this._hass.states[b.entity]?.attributes?.event_types || [];
-              return `<span class="tag">${esc(friendly(this._hass, b.entity))}${types.length ? `<select class="field" data-rule="${esc(rule.id)}" data-button="${bi}" style="min-height:26px;padding:1px 4px;font-size:12.5px"><option value="">${esc(t("any press", "jeder Druck"))}</option>${types.map((x) => `<option value="${esc(x)}"${b.event === x ? " selected" : ""}>${esc(x)}</option>`).join("")}</select>` : ""}<button class="x" data-act="rm-button" data-rule="${esc(rule.id)}" data-i="${bi}" aria-label="${esc(t("Remove", "Entfernen"))}">×</button></span>`;
-            })
-            .join("")}<button class="chip" data-act="pick" data-rule="${esc(rule.id)}" data-kind="button">${esc(t("+ Button", "+ Taster"))}</button><span class="opt">${esc(t("or the action “Toggle a rule” from an automation", "oder die Aktion „Regel umschalten“ aus einer Automation"))}</span></span>
-          ${picker("button") ? `<span></span>${picker("button")}` : ""}
-          <span class="lbl">${esc(t("By hand", "Von Hand"))}</span><label class="opt" style="color:var(--ink)"><input type="checkbox" data-rule="${esc(rule.id)}" data-f="manual" ${rule.manual ? "checked" : ""}> ${esc(t("Also reacts when a light goes on by hand", "Reagiert auch, wenn eine Leuchte von Hand angeht"))}</label>
-          <span class="lbl">${esc(t("Only when dark", "Nur wenn dunkel"))}</span><span class="row">${rule.lux ? `<span class="tag">${esc(friendly(this._hass, rule.lux.sensor))}<button class="x" data-act="rm-lux" data-rule="${esc(rule.id)}" aria-label="${esc(t("Remove", "Entfernen"))}">×</button></span><span class="opt">${esc(t("below", "unter"))}</span><input class="field num" type="number" min="0" data-rule="${esc(rule.id)}" data-f="lux_below" value="${esc(rule.lux.below)}"><span class="opt">lx</span>` : `<button class="chip" data-act="pick" data-rule="${esc(rule.id)}" data-kind="lux">${esc(t("+ Light sensor", "+ Helligkeitssensor"))}</button>`}</span>
-          ${picker("lux") ? `<span></span>${picker("lux")}` : ""}
-        </div></div>
+        ${this._infoText(`trig-${rule.id}`, t("Motion or presence switches on and, once no sensor of the rule sees anybody any more, off again after the time in the row. A contact counts like a motion sensor: open is like motion. A button toggles. A light sensor only limits switching on. “By hand” means: when a light goes on without Maestro, it gets the values of the time of day or its remembered values.", "Bewegung oder Präsenz schaltet ein und, sobald kein Melder der Regel mehr jemanden erkennt, nach der Nachlaufzeit der Zeile wieder aus. Ein Kontakt zählt wie ein Bewegungsmelder: offen ist wie Bewegung. Ein Taster schaltet um. Ein Helligkeitssensor begrenzt nur das Einschalten. „Von Hand“ heißt: Geht eine Leuchte an, ohne dass Maestro sie eingeschaltet hat, bekommt sie die Werte der Tageszeit oder ihre gemerkten Werte."))}
+        <div>${this._triggerRows(rule)}<div class="add"><button class="link" data-act="pick" data-rule="${esc(rule.id)}" data-kind="trigger">${esc(t("+ Add a trigger", "+ Auslöser hinzufügen"))}</button><span class="opt">${esc(t("or the action “Toggle a rule” from an automation", "oder die Aktion „Regel umschalten“ aus einer Automation"))}</span></div>${picker("trigger")}
+        <label class="opt" style="color:var(--ink);padding:4px"><input type="checkbox" data-rule="${esc(rule.id)}" data-f="manual" ${rule.manual ? "checked" : ""}> ${esc(t("Also react when a light goes on by hand", "Auch reagieren, wenn eine Leuchte von Hand angeht"))}</label></div></div>
       <div><div class="hrow"><span class="sub">${esc(t("In each time of day", "In jeder Tageszeit"))}</span>${this._info(`rows-${rule.id}`)}<span class="grow"></span>${this._more(moreId, t("More about the rule", "Mehr zur Regel"))}</div>
-        ${this._infoText(`rows-${rule.id}`, t("Each time of day has its own row. “At the start” says what happens to lights that are on when this time of day begins. Empty fields take the defaults from General. “More” opens transition, memory and taking over another row. “Test” applies the row now.", "Jede Tageszeit hat ihre eigene Zeile. „Beim Beginn“ sagt, was mit eingeschalteten Leuchten passiert, wenn diese Tageszeit anfängt. Leere Felder nehmen die Standardwerte aus Allgemein. „Mehr“ öffnet Übergang, Gedächtnis und das Übernehmen einer anderen Zeile. „Testen“ wendet die Zeile jetzt an."))}
+        ${this._infoText(`rows-${rule.id}`, t("Each time of day has its own row. “Fade to the end” runs the lights from the row's brightness up or down until the time of day ends, as a wake-up light; without a target it ends at the next time of day's brightness. Time until off: with motion, it counts from the moment no sensor of the rule sees anybody, and every new detection starts it again; with a button only, it counts from switching on; empty means never. “At the start” says what happens to lights that are on when this time of day begins. Empty fields take the defaults from General. “Test” applies the row now; a fade then runs in 20 seconds.", "Jede Tageszeit hat ihre eigene Zeile. „Verlauf bis Ende“ lässt die Leuchten von der Helligkeit der Zeile bis zum Ende der Tageszeit hoch- oder runterdimmen, als Lichtwecker; ohne Ziel endet er bei der Helligkeit der nächsten Tageszeit. Nachlaufzeit: Bei Bewegung zählt sie ab dem Moment, in dem kein Melder der Regel mehr jemanden erkennt, jede neue Erkennung startet sie neu; nur mit Taster zählt sie ab dem Einschalten; leer heißt nie. „Beim Beginn“ sagt, was mit eingeschalteten Leuchten passiert, wenn diese Tageszeit anfängt. Leere Felder nehmen die Standardwerte aus Allgemein. „Testen“ wendet die Zeile sofort an, ein Verlauf läuft dann in 20 Sekunden."))}
         ${this._open.has(moreId) ? this._ruleMore(rule) : ""}
-        <div class="wrapx"><table class="tbl"><thead><tr><th>${esc(t("Time of day", "Tageszeit"))}</th><th>${esc(t("Reaction", "Reaktion"))}</th><th>${esc(rule.lights.some((e) => this._lightInfo(e).crescendo) ? t("Position", "Position") : t("Brightness", "Helligkeit"))}</th><th>${esc(t("Color", "Farbe"))}</th><th>${esc(t("Off after", "Aus nach"))}</th><th>${esc(t("At the start", "Beim Beginn"))}</th><th></th><th></th></tr></thead>
+        <div class="wrapx"><table class="tbl rowtbl"><thead><tr><th>${esc(t("Time of day", "Tageszeit"))}</th><th>${esc(t("Reaction", "Reaktion"))}</th><th>${esc(rule.lights.some((e) => this._lightInfo(e).crescendo) ? t("Position", "Position") : t("Brightness", "Helligkeit"))}</th>${rule.lights.length && rule.lights.every((e) => this._lightInfo(e).crescendo) ? "" : `<th>${esc(t("Color", "Farbe"))}</th>`}<th title="${esc(t("With motion: after nobody is seen any more. With a button: after switching on.", "Bei Bewegung: nachdem niemand mehr erkannt wird. Mit Taster: nach dem Einschalten."))}">${esc(t("Time until off", "Nachlaufzeit"))}</th><th>${esc(t("At the start", "Beim Beginn"))}</th><th></th></tr></thead>
           <tbody>${this._allTods().map((tod) => this._ruleRow(rule, tod)).join("")}</tbody></table></div></div>
-      <div><div class="hrow"><span class="sub">${esc(t("Devices and actions at the start", "Geräte und Aktionen beim Beginn"))}</span>${this._info(`dev-${rule.id}`)}</div>
-        ${this._infoText(`dev-${rule.id}`, t("When a time of day begins, a device gets its value once: a blind its position, a thermostat its temperature, a speaker its volume, a switch on or off. A scene or script starts. Empty means: do nothing. After that you may change the device; Maestro steps in again at the next start.", "Beim Beginn einer Tageszeit bekommt ein Gerät seinen Wert, einmal: ein Rollo seine Position, ein Thermostat seine Temperatur, ein Lautsprecher seine Lautstärke, ein Schalter an oder aus. Eine Szene oder ein Skript startet. Leer heißt: nichts tun. Danach darfst du das Gerät verstellen; Maestro greift erst beim nächsten Beginn wieder ein."))}
-        ${devs.length ? `<div class="wrapx"><table class="tbl"><thead><tr><th>${esc(t("Time of day", "Tageszeit"))}</th>${devs.map((d, di) => `<th>${esc(friendly(this._hass, d.entity))}<br><span style="font-weight:400">${esc(this._deviceKind(d.entity))}</span> <button class="x" data-act="rm-device" data-rule="${esc(rule.id)}" data-i="${di}" aria-label="${esc(t("Remove", "Entfernen"))}" style="width:20px;height:20px;font-size:14px">×</button></th>`).join("")}<th></th></tr></thead>
-          <tbody>${this._allTods()
-            .map(
-              (tod) => `<tr class="${tod.key === w.base.key ? "base" : ""}"><td><span class="cell">${this._tile(tod, true)}<b>${esc(tod.name)}</b></span></td>${devs.map((d, di) => `<td>${this._deviceCell(rule, di, d, tod.key)}</td>`).join("")}
-                <td><button class="btn sm" data-act="test" data-rule="${esc(rule.id)}" data-tod="${esc(tod.key)}">${esc(t("Test", "Testen"))}</button></td></tr>`,
-            )
-            .join("")}</tbody></table></div>` : ""}
-        <div class="add"><button class="link" data-act="pick" data-rule="${esc(rule.id)}" data-kind="device">${esc(t("+ Add a device or action", "+ Gerät oder Aktion hinzufügen"))}</button></div>${picker("device")}</div>
+      <div><div class="hrow"><span class="sub">${esc(t("Devices and actions", "Geräte und Aktionen"))}</span>${this._info(`dev-${rule.id}`)}</div>
+        ${this._infoText(`dev-${rule.id}`, t("A device gets its value once, at a moment you choose: at, before or after the start or the end of a time of day. For example the bathroom heating 60 minutes before the start of wake-up, or the blind at the end of the evening, whatever comes next. A scene or script starts. After that you may change the device; Maestro steps in again the next time.", "Ein Gerät bekommt seinen Wert einmal, zu einem Zeitpunkt deiner Wahl: bei, vor oder nach Beginn oder Ende einer Tageszeit. Zum Beispiel die Heizung im Bad 60 Minuten vor dem Beginn von Aufstehen, oder das Rollo am Ende des Abends, egal was danach kommt. Eine Szene oder ein Skript startet. Danach darfst du das Gerät verstellen; Maestro greift erst beim nächsten Mal wieder ein."))}
+        ${rule.actions.length ? `<div class="wrapx"><table class="tbl"><thead><tr><th>${esc(t("When", "Wann"))}</th><th>${esc(t("Device", "Gerät"))}</th><th>${esc(t("Value", "Wert"))}</th><th></th><th></th></tr></thead><tbody>${this._actionRows(rule)}</tbody></table></div>` : ""}
+        <div class="add"><button class="link" data-act="pick" data-rule="${esc(rule.id)}" data-kind="action">${esc(t("+ Add a device or action", "+ Gerät oder Aktion hinzufügen"))}</button></div>${picker("action")}</div>
     </div>`;
     return `<div class="rule">${head}${body}</div>`;
+  }
+
+  _triggerRows(rule) {
+    const t = this._t;
+    const rows = [];
+    for (const m of rule.motion) {
+      const dc = this._hass.states[m]?.attributes?.device_class;
+      const kind = ["motion", "occupancy", "presence"].includes(dc) ? t("Motion or presence", "Bewegung oder Präsenz") : t("Contact or other sensor", "Kontakt oder anderer Melder");
+      const on = this._hass.states[m]?.state === "on";
+      rows.push(`<div class="light">${icon(["motion", "occupancy", "presence"].includes(dc) ? "mdi:motion-sensor" : "mdi:door-sliding", 18)}<b>${esc(friendly(this._hass, m))}</b><span class="kind">${esc(kind)}</span><span class="state">${esc(on ? t("detects", "erkennt") : t("clear", "frei"))}</span><button class="x" data-act="rm-motion" data-rule="${esc(rule.id)}" data-e="${esc(m)}" aria-label="${esc(t("Remove", "Entfernen"))}">×</button></div>`);
+    }
+    rule.buttons.forEach((b, bi) => {
+      const types = this._hass.states[b.entity]?.attributes?.event_types || [];
+      const sel = types.length ? `<select class="field" data-rule="${esc(rule.id)}" data-button="${bi}" style="min-height:28px;padding:1px 6px;font-size:13px"><option value="">${esc(t("any press", "jeder Druck"))}</option>${types.map((x) => `<option value="${esc(x)}"${b.event === x ? " selected" : ""}>${esc(x)}</option>`).join("")}</select>` : "";
+      rows.push(`<div class="light">${icon("mdi:gesture-tap-button", 18)}<b>${esc(friendly(this._hass, b.entity))}</b><span class="kind">${esc(t("Button", "Taster"))}</span>${sel}<span class="state"></span><button class="x" data-act="rm-button" data-rule="${esc(rule.id)}" data-i="${bi}" aria-label="${esc(t("Remove", "Entfernen"))}">×</button></div>`);
+    });
+    if (rule.lux) {
+      const st = this._hass.states[rule.lux.sensor];
+      rows.push(`<div class="light">${icon("mdi:brightness-5", 18)}<b>${esc(friendly(this._hass, rule.lux.sensor))}</b><span class="kind">${esc(t("Only when darker than", "Nur wenn dunkler als"))}</span><input class="field num" type="number" min="0" data-rule="${esc(rule.id)}" data-f="lux_below" value="${esc(rule.lux.below)}" style="min-height:28px"><span class="opt">lx</span><span class="state">${esc(st ? `${st.state} lx` : "")}</span><button class="x" data-act="rm-lux" data-rule="${esc(rule.id)}" aria-label="${esc(t("Remove", "Entfernen"))}">×</button></div>`);
+    }
+    return rows.join("");
   }
 
   _ruleMore(rule) {
@@ -1019,8 +1035,17 @@ class MaestroPanel extends HTMLElement {
       <label>${esc(t("Switched on by hand or by another rule", "Von Hand oder von einer anderen Regel eingeschaltet"))} <select class="field" data-rule="${esc(rule.id)}" data-f="manual_after_mode"><option value="same"${manualAfter === "same" ? " selected" : ""}>${esc(t("same time until off", "gleiche Nachlaufzeit"))}</option><option value="minutes"${manualAfter === "minutes" ? " selected" : ""}>${esc(t("own time", "eigene Nachlaufzeit"))}</option><option value="never"${manualAfter === "never" ? " selected" : ""}>${esc(t("never switch off", "nicht ausschalten"))}</option></select>${manualAfter === "minutes" ? `<input class="field num" type="number" min="1" data-rule="${esc(rule.id)}" data-f="manual_after_minutes" value="${esc(rule.manual_after)}"> min` : ""}</label>
       <label>${esc(t("Switched on from outside", "Einschalten von außen"))} <select class="field" data-rule="${esc(rule.id)}" data-f="external_on"><option value="apply"${rule.external_on === "apply" ? " selected" : ""}>${esc(t("apply the time of day", "Werte der Tageszeit anwenden"))}</option><option value="keep"${rule.external_on === "keep" ? " selected" : ""}>${esc(t("leave as it is", "so lassen"))}</option></select></label>
       <label><input type="checkbox" data-rule="${esc(rule.id)}" data-f="warn" ${(rule.warn ?? d.warn) ? "checked" : ""}> ${esc(t("Warn by dimming before switching off", "Vorwarnung vor dem Ausschalten"))}</label>
+      <label><input type="checkbox" data-rule="${esc(rule.id)}" data-f="fade_hold" ${rule.fade_hold !== false ? "checked" : ""}> ${esc(t("During a fade, motion never switches off", "Während eines Verlaufs schaltet Bewegung nicht aus"))}</label>
       <label>${esc(t("Lock after switching off by hand", "Sperrzeit nach Ausschalten von Hand"))} <input class="field num" type="number" min="0" data-rule="${esc(rule.id)}" data-f="lock" value="${rule.lock ?? ""}" placeholder="${esc(d.lock)}"> s</label>
     </div>`;
+  }
+
+  // The brightness the next time of day in the list would start with, for the placeholder of a fade's target.
+  _nextBrightness(rule, tod) {
+    const order = this._w.times_of_day.map((x) => x.key);
+    const i = order.indexOf(tod.key);
+    const next = i >= 0 && i + 1 < order.length ? rule.rows[order[i + 1]] : null;
+    return next?.react === "on" && next?.brightness ? next.brightness : 100;
   }
 
   _ruleRow(rule, tod) {
@@ -1033,34 +1058,42 @@ class MaestroPanel extends HTMLElement {
       colorOpen = this._open.has(`${id}-c`);
     const infos = rule.lights.map((e) => this._lightInfo(e));
     const cres = infos.some((x) => x.crescendo);
+    const onlyCres = infos.length > 0 && infos.every((x) => x.crescendo);
+    const cols = onlyCres ? 6 : 7;
     const anyKelvin = infos.some((x) => x.kelvin),
       anyColor = infos.some((x) => x.color);
-    const hasMotion = rule.motion.length > 0,
-      hasButton = rule.buttons.length > 0;
+    const hasMotion = rule.motion.length > 0;
+    const fade = row.react === "on" && row.fade;
     const off = row.react !== "on";
     const attrs = `data-rule="${esc(rule.id)}" data-tod="${esc(tod.key)}"`;
-    const reactions = [["on", t("Switch on", "Einschalten")], ["off_only", t("Only switch off", "Nur ausschalten")], ["none", t("Do nothing", "Nicht reagieren")]];
+    const reactions = [["on", t("Switch on", "Einschalten")], ["fade", t("Fade to the end", "Verlauf bis Ende")], ["off_only", t("Only switch off", "Nur ausschalten")], ["none", t("Do nothing", "Nicht reagieren")]];
     const begins = [["follow_free", t("Follow, unless overridden", "Folgen, außer übersteuert")], ["follow", t("Follow", "Folgen")], ["keep", t("Keep", "Beibehalten")], ["off", t("Switch off", "Ausschalten")]];
     const sel = (f, pairs, value) => `<select class="field" ${attrs} data-f="${f}">${pairs.map(([k, v]) => `<option value="${k}"${k === value ? " selected" : ""}>${esc(v)}</option>`).join("")}</select>`;
     const presets = cres ? infos.find((x) => x.crescendo).buttons : [];
+    // The object's buttons are offered as suggestions in the field.
+    const list = presets.length ? ` list="pre-${esc(rule.id)}"` : "";
+    const presetHTML = presets.length ? `<datalist id="pre-${esc(rule.id)}">${presets.map((b) => `<option value="${esc(b.position)}" label="${esc(b.name)}"></option>`).join("")}</datalist>` : "";
     const brightCell = off
       ? `<span class="opt">—</span>`
-      : `<span class="cell"><input class="field num" type="number" min="1" max="100" ${attrs} data-f="brightness" value="${row.brightness ?? ""}" placeholder="100"><span class="opt">%</span>${presets.length ? `<span class="presets">${presets.map((b) => `<button data-act="preset" ${attrs} data-v="${esc(b.position)}" title="${esc(b.name)}: ${esc(b.position)}">${esc(b.name)}</button>`).join("")}</span>` : ""}</span>`;
+      : fade
+        ? `<span class="cell"><span class="opt">${esc(t("from", "von"))}</span><input class="field num sm" type="number" min="1" max="100" ${attrs} data-f="brightness" value="${row.brightness ?? ""}" placeholder="1"><span class="opt">${esc(t("to", "bis"))}</span><input class="field num sm" type="number" min="1" max="100" ${attrs} data-f="fade_to" value="${row.fade_to ?? ""}" placeholder="${esc(this._nextBrightness(rule, tod))}" title="${esc(t("Empty: the brightness of the next time of day", "Leer: die Helligkeit der nächsten Tageszeit"))}"><span class="opt">%</span></span>`
+        : `<span class="cell"><input class="field num" type="number" min="1" max="100" ${attrs} data-f="brightness" value="${row.brightness ?? ""}" placeholder="100"${list} title="${esc(presets.map((b) => `${b.name} ${b.position}`).join(" · "))}"><span class="opt">%</span>${presetHTML}</span>`;
     const colorLabel = row.color?.kelvin ? `${row.color.kelvin} K` : row.color?.rgb ? t("Color", "Farbe") : t("as is", "wie bisher");
     const colorBg = row.color?.kelvin ? kelvinColor(row.color.kelvin) : row.color?.rgb ? `rgb(${row.color.rgb.join(",")})` : "var(--well)";
     const colorCell = off ? "" : cres ? `<span class="opt">${esc(t("from the stops", "aus den Stufen"))}</span>` : anyKelvin || anyColor ? `<button class="swatchbtn" data-act="more" data-id="${esc(id)}-c" aria-expanded="${colorOpen}"><i style="background:${colorBg}"></i>${esc(colorLabel)}</button>` : `<span class="opt">—</span>`;
     const afterCell = `<span class="cell"><input class="field num" type="number" min="0" ${attrs} data-f="after" value="${row.after ?? ""}" placeholder="${hasMotion ? esc(d.after) : "—"}"><span class="opt">min</span></span>`;
+    const beginCell = fade ? `<span class="opt" title="${esc(t("The fade switches the lights on by itself.", "Der Verlauf schaltet die Leuchten selbst ein."))}">${esc(t("switches on", "schaltet ein"))}</span>` : sel("begin", begins, row.begin);
     let detail = "";
     if (colorOpen && !off) {
       const mode = row.color?.rgb ? "rgb" : "kelvin";
-      detail += `<tr class="detail"><td colspan="8"><div class="detail-grid">
+      detail += `<tr class="detail"><td colspan="${cols}"><div class="detail-grid">
         ${anyKelvin ? `<label><input type="radio" name="${esc(id)}-mode" ${attrs} data-f="color_mode" value="kelvin" ${mode === "kelvin" ? "checked" : ""}> ${esc(t("White tone", "Weißton"))}</label>` : ""}
         ${anyColor ? `<label><input type="radio" name="${esc(id)}-mode" ${attrs} data-f="color_mode" value="rgb" ${mode === "rgb" ? "checked" : ""}> ${esc(t("Color", "Farbe"))}</label>` : ""}
         ${mode === "kelvin" ? `<input class="bar-k" type="range" min="2000" max="6500" step="50" ${attrs} data-f="kelvin" value="${row.color?.kelvin || 3000}" aria-label="${esc(t("White tone", "Weißton"))}"><span class="opt">${row.color?.kelvin || 3000} K</span>` : `<input class="bar-h" type="range" min="0" max="359" ${attrs} data-f="hue" value="${row.color?.rgb ? rgbHue(row.color.rgb) : 30}" aria-label="${esc(t("Color", "Farbe"))}">`}
-        <button class="link" data-act="color-none" ${attrs}>${esc(t("No color change", "Keine Farbänderung"))}</button></div></td></tr>`;
+        <button class="link" data-act="color-none" ${attrs}>${esc(t("No color change", "Keine Farbänderung"))}</button>${fade ? `<span class="opt">${esc(t("A fade runs from this white tone to the next time of day's.", "Ein Verlauf läuft von diesem Weißton zu dem der nächsten Tageszeit."))}</span>` : ""}</div></td></tr>`;
     }
     if (open) {
-      detail += `<tr class="detail"><td colspan="8"><div class="detail-grid">
+      detail += `<tr class="detail"><td colspan="${cols}"><div class="detail-grid">
         <label>${esc(t("Transition", "Übergang"))} <input class="field num" type="number" min="0" ${attrs} data-f="transition" value="${row.transition ?? ""}" placeholder="${esc(d.transition)}"> s${cres ? ` <span class="opt">${esc(t("empty: the object's speed", "leer: Tempo des Objekts"))}</span>` : ""}</label>
         <label>${esc(t("Memory", "Merkdauer"))} <input class="field num" type="number" min="0" ${attrs} data-f="memory" value="${row.memory ?? ""}" placeholder="${esc(d.memory)}"> min</label>
         <label><input type="checkbox" ${attrs} data-f="forget" ${row.forget ? "checked" : ""}> ${esc(t("Forget at the start", "Beim Beginn vergessen"))}</label>
@@ -1073,84 +1106,175 @@ class MaestroPanel extends HTMLElement {
     }
     return `<tr class="${tod.key === w.base.key ? "base" : ""}${open || colorOpen ? " open" : ""}">
       <td><span class="cell">${this._tile(tod, true)}<b>${esc(tod.name)}</b></span></td>
-      <td>${sel("react", reactions, row.react)}</td>
-      <td>${brightCell}</td><td>${colorCell}</td><td>${afterCell}</td>
-      <td>${sel("begin", begins, row.begin)}</td>
-      <td><button class="btn sm" data-act="test" data-rule="${esc(rule.id)}" data-tod="${esc(tod.key)}">${esc(t("Test", "Testen"))}</button></td>
-      <td>${this._more(id)}</td></tr>${detail}`;
+      <td>${sel("react", reactions, fade ? "fade" : row.react)}</td>
+      <td>${brightCell}</td>${onlyCres ? "" : `<td>${colorCell}</td>`}<td>${afterCell}</td>
+      <td>${beginCell}</td>
+      <td class="acts"><button class="btn sm" data-act="test" data-rule="${esc(rule.id)}" data-tod="${esc(tod.key)}">${esc(t("Test", "Testen"))}</button>${this._more(id)}</td></tr>${detail}`;
   }
+
+  // -- actions of a rule --------------------------------------------------------------------------------
 
   _deviceKind(entityId) {
     const t = this._t;
-    const names = { cover: ["Blind", "Rollo"], climate: ["Thermostat", "Thermostat"], media_player: ["Speaker", "Lautsprecher"], fan: ["Fan", "Lüfter"], switch: ["Switch", "Schalter"], input_boolean: ["Switch", "Schalter"], number: ["Value", "Wert"], input_number: ["Value", "Wert"], scene: ["Scene", "Szene"], script: ["Script", "Skript"] };
+    const names = { cover: ["Blind", "Rollo"], climate: ["Heating", "Heizung"], media_player: ["Speaker", "Lautsprecher"], fan: ["Fan", "Lüfter"], switch: ["Switch", "Schalter"], input_boolean: ["Switch", "Schalter"], number: ["Value", "Wert"], input_number: ["Value", "Wert"], scene: ["Scene", "Szene"], script: ["Script", "Skript"] };
     const pair = names[entityId.split(".")[0]];
     return pair ? t(...pair) : entityId.split(".")[0];
   }
 
-  _deviceCell(rule, di, device, key) {
+  _actionRows(rule) {
     const t = this._t;
-    const domain = device.entity.split(".")[0];
-    const value = device.values[key];
-    const attrs = `data-rule="${esc(rule.id)}" data-device="${di}" data-tod="${esc(key)}"`;
+    const order = this._allTods().map((x) => x.key);
+    const timing = [
+      ["start0", t("at the start of", "beim Beginn von")],
+      ["start-", t("before the start of", "vor dem Beginn von")],
+      ["start+", t("after the start of", "nach dem Beginn von")],
+      ["end0", t("at the end of", "am Ende von")],
+      ["end-", t("before the end of", "vor dem Ende von")],
+      ["end+", t("after the end of", "nach dem Ende von")],
+    ];
+    return rule.actions
+      .map((a, i) => ({ a, i }))
+      .sort((x, y) => order.indexOf(x.a.tod) - order.indexOf(y.a.tod) || (x.a.edge === y.a.edge ? x.a.offset - y.a.offset : x.a.edge === "start" ? -1 : 1))
+      .map(({ a, i }) => {
+        const attrs = `data-rule="${esc(rule.id)}" data-action="${i}"`;
+        const when = `${a.edge}${a.offset < 0 ? "-" : a.offset > 0 ? "+" : "0"}`;
+        const minutes = a.offset ? `<input class="field num" type="number" min="1" max="720" ${attrs} data-f="minutes" value="${Math.abs(a.offset)}" aria-label="${esc(t("Minutes", "Minuten"))}"><span class="opt">min</span>` : "";
+        return `<tr><td><span class="cell" style="flex-wrap:wrap">${minutes}<select class="field" ${attrs} data-f="when">${timing.map(([k, v]) => `<option value="${k}"${k === when ? " selected" : ""}>${esc(v)}</option>`).join("")}</select>
+            <select class="field" ${attrs} data-f="tod">${this._allTods().map((x) => `<option value="${esc(x.key)}"${x.key === a.tod ? " selected" : ""}>${esc(x.name)}</option>`).join("")}</select></span></td>
+          <td><span class="cell">${icon(this._hass.states[a.entity]?.attributes?.icon || DOMAIN_ICON[a.entity.split(".")[0]] || "mdi:devices", 18)}<span><b>${esc(friendly(this._hass, a.entity))}</b><br><span class="opt">${esc(this._deviceKind(a.entity))}</span></span></span></td>
+          <td>${this._actionValue(a, attrs)}</td>
+          <td><button class="btn sm" data-act="test-action" data-rule="${esc(rule.id)}" data-i="${i}">${esc(t("Test", "Testen"))}</button></td>
+          <td><button class="x" data-act="rm-action" data-rule="${esc(rule.id)}" data-i="${i}" aria-label="${esc(t("Remove", "Entfernen"))}">×</button></td></tr>`;
+      })
+      .join("");
+  }
+
+  _actionValue(action, attrs) {
+    const t = this._t;
+    const domain = action.entity.split(".")[0];
     if (domain in DEVICE_UNITS) {
       const unit = domain === "climate" ? this._hass.config?.unit_system?.temperature || "°C" : DEVICE_UNITS[domain];
-      return `<span class="cell"><input class="field num" type="number" step="${domain === "climate" ? 0.5 : 5}" ${attrs} value="${value ?? ""}" placeholder="—" aria-label="${esc(friendly(this._hass, device.entity))}"><span class="opt">${esc(unit)}</span></span>`;
+      return `<span class="cell"><input class="field num" type="number" step="${domain === "climate" ? 0.5 : 5}" ${attrs} data-f="value" value="${esc(action.value)}"><span class="opt">${esc(unit)}</span></span>`;
     }
-    const pairs = domain === "scene" || domain === "script" ? [["", "—"], ["on", t("start", "starten")]] : [["", "—"], ["on", t("on", "an")], ["off", t("off", "aus")]];
-    const current = value === true || value === "on" ? "on" : value === false || value === "off" ? "off" : "";
-    return `<select class="field" ${attrs} aria-label="${esc(friendly(this._hass, device.entity))}">${pairs.map(([k, v]) => `<option value="${k}"${k === current ? " selected" : ""}>${esc(v)}</option>`).join("")}</select>`;
+    const pairs = domain === "scene" || domain === "script" ? [["on", t("start", "starten")]] : [["on", t("on", "an")], ["off", t("off", "aus")]];
+    const current = action.value === true || action.value === "on" ? "on" : "off";
+    return `<select class="field" ${attrs} data-f="value">${pairs.map(([k, v]) => `<option value="${k}"${k === current ? " selected" : ""}>${esc(v)}</option>`).join("")}</select>`;
   }
 
-  // The entity search for lights, sensors, buttons and devices.
+  _defaultValue(entityId) {
+    const domain = entityId.split(".")[0];
+    const st = this._hass.states[entityId];
+    if (domain === "cover") return 100;
+    if (domain === "climate") return Number(st?.attributes?.temperature) || 21;
+    if (domain === "media_player") return 30;
+    if (domain === "fan") return 50;
+    if (domain === "number" || domain === "input_number") return Number(st?.state) || 0;
+    return "on";
+  }
+
+  // -- the search for lights, triggers and devices, with kinds as chips and a choice of room -------------
+
+  _pickKinds(kind) {
+    const t = this._t;
+    if (kind === "light") return [["crescendo", t("Crescendo objects", "Crescendo-Objekte")], ["light", t("Lights", "Leuchten")], ["group", t("Light groups", "Lichtgruppen")]];
+    if (kind === "trigger") return [["motion", t("Motion and presence", "Bewegung und Präsenz")], ["button", t("Buttons", "Taster")], ["lux", t("Light sensors", "Helligkeit")], ["contact", t("Contacts and other sensors", "Kontakte und andere Melder")]];
+    return [["cover", t("Blinds", "Rollos")], ["climate", t("Heating", "Heizung")], ["media_player", t("Speakers", "Lautsprecher")], ["fan", t("Fans", "Lüfter")], ["switch", t("Switches", "Schalter")], ["scene", t("Scenes", "Szenen")], ["script", t("Scripts", "Skripte")], ["number", t("Values", "Werte")]];
+  }
+
+  _catOf(kind, id) {
+    const st = this._hass.states[id];
+    const a = st.attributes || {};
+    const domain = id.split(".")[0];
+    if (kind === "light") {
+      if (domain !== "light") return null;
+      return a.crescendo ? "crescendo" : Array.isArray(a.entity_id) && a.entity_id.length ? "group" : "light";
+    }
+    if (kind === "trigger") {
+      if (domain === "binary_sensor") return ["motion", "occupancy", "presence"].includes(a.device_class) ? "motion" : "contact";
+      if (domain === "event" || domain === "input_button") return "button";
+      if (domain === "sensor" && (a.device_class === "illuminance" || /^(lx|lux)$/i.test(a.unit_of_measurement || ""))) return "lux";
+      return null;
+    }
+    if (a.crescendo) return null;
+    if (domain === "input_boolean") return "switch";
+    if (domain === "input_number") return "number";
+    return DEVICE_DOMAINS.includes(domain) ? domain : null;
+  }
+
+  _pickItems(rule, kind) {
+    const hass = this._hass;
+    const taken = new Set(kind === "light" ? rule.lights : kind === "trigger" ? [...rule.motion, ...rule.buttons.map((b) => b.entity), rule.lux?.sensor] : []);
+    // Maestro's own entities make no sense as lights, triggers or devices of a rule.
+    const own = new Set(this._rhythms.flatMap((r) => Object.values(r.entities || {})));
+    const out = [];
+    for (const id of Object.keys(hass.states)) {
+      if (taken.has(id) || own.has(id) || hass.entities?.[id]?.platform === "cloudless_maestro") continue;
+      const cat = this._catOf(kind, id);
+      if (!cat) continue;
+      const name = friendly(hass, id),
+        area = areaOf(hass, id);
+      out.push({ id, cat, name, area, text: `${name} ${id} ${area}`.toLowerCase() });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   _pickerHTML(rule, kind) {
     const t = this._t;
-    const titles = { light: t("Add a light", "Leuchte hinzufügen"), motion: t("Add a motion or presence sensor", "Bewegungs- oder Präsenzmelder hinzufügen"), button: t("Add a button", "Taster hinzufügen"), lux: t("Choose a light sensor", "Helligkeitssensor wählen"), device: t("Add a device or action", "Gerät oder Aktion hinzufügen") };
+    const titles = { light: t("Add a light or Crescendo object", "Leuchte oder Crescendo-Objekt hinzufügen"), trigger: t("Add a trigger", "Auslöser hinzufügen"), action: t("Add a device or action", "Gerät oder Aktion hinzufügen") };
+    const items = this._pickItems(rule, kind);
+    const kinds = this._pickKinds(kind).filter(([k]) => items.some((x) => x.cat === k));
+    const p = this._pick;
+    if (p.cat === undefined) p.cat = kinds[0]?.[0] || "";
+    if (p.cat && !kinds.some(([k]) => k === p.cat)) p.cat = "";
+    const areas = [...new Set(items.map((x) => x.area).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    if (p.room && !areas.includes(p.room)) p.room = "";
+    const chips = [...kinds.map(([k, l]) => [k, `${l} ${items.filter((x) => x.cat === k).length}`]), ["", t("All", "Alle")]]
+      .map(([k, l]) => `<button class="chip" data-act="pick-cat" data-cat="${esc(k)}" aria-pressed="${p.cat === k}">${esc(l)}</button>`)
+      .join("");
     return `<div class="pick"><div class="row space"><span class="sub">${esc(titles[kind])}</span><button class="btn sm" data-act="pick-close">${esc(t("Done", "Fertig"))}</button></div>
-      <input class="field" type="search" id="pickSearch" value="${esc(this._pickQuery)}" placeholder="${esc(t("Search by name or room", "Nach Name oder Raum suchen"))}" autocomplete="off">
+      <div class="row"><input class="field grow" type="search" id="pickSearch" value="${esc(p.query || "")}" placeholder="${esc(t("Search by name or room", "Nach Name oder Raum suchen"))}" autocomplete="off" style="min-width:180px">${areas.length ? `<select class="field" id="pickRoom" aria-label="${esc(t("Room", "Raum"))}"><option value="">${esc(t("All rooms", "Alle Räume"))}</option>${areas.map((a) => `<option value="${esc(a)}"${a === p.room ? " selected" : ""}>${esc(a)}</option>`).join("")}</select>` : ""}</div>
+      <div class="chips" role="group" aria-label="${esc(t("Kind", "Art"))}">${chips}</div>
       <div class="picklist" id="pickList">${this._pickListHTML(rule, kind)}</div></div>`;
-  }
-
-  _pickCandidates(rule, kind) {
-    const hass = this._hass;
-    const all = Object.keys(hass.states);
-    const taken = new Set(kind === "light" ? rule.lights : kind === "motion" ? rule.motion : kind === "button" ? rule.buttons.map((b) => b.entity) : kind === "device" ? rule.devices.map((d) => d.entity) : []);
-    const prefer = (id) => {
-      const dc = hass.states[id].attributes.device_class;
-      if (kind === "motion") return ["motion", "occupancy", "presence"].includes(dc) ? 0 : 1;
-      if (kind === "lux") return dc === "illuminance" ? 0 : 1;
-      if (kind === "light") return hass.states[id].attributes.crescendo ? 0 : 1;
-      return 0;
-    };
-    const ok = (id) => {
-      const domain = id.split(".")[0];
-      if (taken.has(id)) return false;
-      if (kind === "light") return domain === "light";
-      if (kind === "motion") return domain === "binary_sensor";
-      if (kind === "button") return domain === "event" || domain === "input_button" || domain === "button";
-      if (kind === "lux") return domain === "sensor" && (hass.states[id].attributes.device_class === "illuminance" || /lx|lux/i.test(hass.states[id].attributes.unit_of_measurement || ""));
-      return DEVICE_DOMAINS.includes(domain) && !hass.states[id].attributes.crescendo;
-    };
-    const q = this._pickQuery.trim().toLowerCase();
-    return all
-      .filter(ok)
-      .filter((id) => !q || `${friendly(hass, id)} ${areaOf(hass, id)} ${id}`.toLowerCase().includes(q))
-      .sort((a, b) => prefer(a) - prefer(b) || friendly(hass, a).localeCompare(friendly(hass, b)))
-      .slice(0, 60);
   }
 
   _pickListHTML(rule, kind) {
     const t = this._t;
     const hass = this._hass;
-    const items = this._pickCandidates(rule, kind);
-    if (!items.length) return `<p class="note" style="padding:8px">${esc(t("Nothing found.", "Nichts gefunden."))}</p>`;
-    return items
-      .map((id) => {
-        const st = hass.states[id];
-        const meta = [areaOf(hass, id), kind === "light" ? this._lightInfo(id).kind : kind === "device" ? this._deviceKind(id) : st.attributes.device_class || ""].filter(Boolean).join(" · ");
-        const state = kind === "light" ? this._lightInfo(id).state : st.state === "on" || st.state === "off" ? t(st.state === "on" ? "On" : "Off", st.state === "on" ? "An" : "Aus") : st.state.length < 12 ? st.state : "";
-        return `<button data-act="pick-add" data-rule="${esc(rule.id)}" data-kind="${esc(kind)}" data-e="${esc(id)}"><span class="pname">${esc(friendly(hass, id))}</span><span class="pstate">${esc(state)}</span><span class="pmeta">${esc(meta || id)}</span></button>`;
-      })
-      .join("");
+    const p = this._pick;
+    const labels = Object.fromEntries(this._pickKinds(kind));
+    const order = this._pickKinds(kind).map(([k]) => k);
+    const words = (p.query || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const hits = this._pickItems(rule, kind)
+      .filter((x) => (!p.cat || x.cat === p.cat) && (!p.room || x.area === p.room) && words.every((w) => x.text.includes(w)))
+      .sort((a, b) => order.indexOf(a.cat) - order.indexOf(b.cat) || a.name.localeCompare(b.name));
+    if (!hits.length) return `<p class="note" style="padding:8px">${esc(t("Nothing found.", "Nichts gefunden."))}</p>`;
+    const MAX = 40;
+    return (
+      hits
+        .slice(0, MAX)
+        .map((x) => {
+          const st = hass.states[x.id];
+          const state = kind === "light" ? this._lightInfo(x.id).state : this._stateText(x.id);
+          const meta = [x.area, kind === "light" ? this._lightInfo(x.id).kind : labels[x.cat], state].filter(Boolean).join(" · ");
+          const ic = st.attributes?.icon || (kind === "light" ? (x.cat === "crescendo" ? "mdi:tune-vertical-variant" : x.cat === "group" ? "mdi:lightbulb-group-outline" : "mdi:lightbulb-outline") : DOMAIN_ICON[x.id.split(".")[0]] || (x.cat === "motion" ? "mdi:motion-sensor" : "mdi:devices"));
+          return `<button data-act="pick-add" data-rule="${esc(rule.id)}" data-kind="${esc(kind)}" data-cat="${esc(x.cat)}" data-e="${esc(x.id)}">${icon(ic, 20)}<span class="pmain"><span class="pname">${esc(x.name)}</span><span class="pmeta">${esc(meta)}</span></span><span class="padd">${esc(t("Add", "Hinzufügen"))}</span></button>`;
+        })
+        .join("") + (hits.length > MAX ? `<p class="note" style="padding:8px">${esc(t(`${hits.length - MAX} more. Narrow the search.`, `${hits.length - MAX} weitere. Grenze die Suche ein.`))}</p>` : "")
+    );
+  }
+
+  _stateText(id) {
+    const t = this._t;
+    const st = this._hass.states[id];
+    const a = st.attributes || {};
+    const domain = id.split(".")[0];
+    if (domain === "climate" && a.temperature != null) return `${t("set to", "Soll")} ${a.temperature} °`;
+    if (domain === "cover" && a.current_position != null) return `${a.current_position} %`;
+    if (domain === "media_player" && a.volume_level != null) return `${t("volume", "Lautstärke")} ${Math.round(a.volume_level * 100)} %`;
+    if (domain === "sensor") return `${st.state} ${a.unit_of_measurement || ""}`.trim();
+    if (st.state === "on") return t("on", "an");
+    if (st.state === "off") return t("off", "aus");
+    return st.state.length < 14 ? st.state : "";
   }
 
   // -- general ----------------------------------------------------------------------------------------
@@ -1167,15 +1291,16 @@ class MaestroPanel extends HTMLElement {
       <div class="hrow"><span class="sub">${esc(t("Location for sun times", "Standort für Sonnenzeiten"))}</span></div>
       <div class="row"><label class="opt" style="color:var(--ink)"><input type="radio" name="loc" id="locHa" ${loc ? "" : "checked"}> ${esc(t("Location of Home Assistant", "Standort von Home Assistant"))}</label><label class="opt" style="color:var(--ink)"><input type="radio" name="loc" id="locOwn" ${loc ? "checked" : ""}> ${esc(t("Own location", "Eigener Standort"))}</label>
         ${loc ? `<input class="field num" id="lat" type="number" step="0.0001" min="-90" max="90" value="${esc(loc.latitude)}" aria-label="${esc(t("Latitude", "Breitengrad"))}" style="width:110px"><input class="field num" id="lon" type="number" step="0.0001" min="-180" max="180" value="${esc(loc.longitude)}" aria-label="${esc(t("Longitude", "Längengrad"))}" style="width:110px">` : ""}</div>
-      <div class="hrow"><span class="sub">${esc(t("Defaults for the rules", "Standardwerte für Regeln"))}</span>${this._info("defaults")}</div>
-      ${this._infoText("defaults", t("Empty fields in the rules take these values. Before switching off, the warning dims to half, at least 1 %. The lock keeps motion from switching a light back on right after somebody switched it off by hand.", "Leere Felder in den Regeln nehmen diese Werte. Die Vorwarnung dimmt vor dem Ausschalten auf die Hälfte, mindestens 1 %. Die Sperrzeit verhindert, dass eine von Hand ausgeschaltete Leuchte beim Hinausgehen gleich wieder angeht."))}
-      <div class="detail-grid">
-        <label>${esc(t("Transition", "Übergang"))} <input class="field num" type="number" min="0" data-default="transition" value="${esc(d.transition)}"> s</label>
-        <label>${esc(t("Memory", "Merkdauer"))} <input class="field num" type="number" min="0" data-default="memory" value="${esc(d.memory)}"> min</label>
-        <label>${esc(t("Off after", "Nachlaufzeit"))} <input class="field num" type="number" min="0" data-default="after" value="${esc(d.after)}"> min</label>
-        <label><input type="checkbox" data-default="warn" ${d.warn ? "checked" : ""}> ${esc(t("Warning", "Vorwarnung"))}</label>
-        <label><input class="field num" type="number" min="3" max="300" data-default="warn_seconds" value="${esc(d.warn_seconds)}"> s</label>
-        <label>${esc(t("Lock", "Sperrzeit"))} <input class="field num" type="number" min="0" data-default="lock" value="${esc(d.lock)}"> s</label></div>
+      <div class="hrow"><span class="sub">${esc(t("Defaults for the rules", "Standardwerte für Regeln"))}</span></div>
+      <div class="rows defs">${[
+        ["transition", t("Transition", "Übergang"), "s", t("How long switching on and changing takes when a row says nothing else. Crescendo objects take their own speed.", "Wie lange Einschalten und Umschalten dauern, wenn eine Zeile nichts anderes sagt. Crescendo-Objekte nehmen ihr eigenes Tempo.")],
+        ["memory", t("Memory", "Merkdauer"), "min", t("For this long, a light set by hand gets its values back when it goes on again. Afterwards the row applies. 0 means never remember.", "So lange bekommt eine von Hand eingestellte Leuchte ihre Werte zurück, wenn sie wieder angeht. Danach gilt die Zeile. 0 heißt nie merken.")],
+        ["after", t("Time until off", "Nachlaufzeit"), "min", t("With motion: how long the light stays on after no sensor of the rule sees anybody any more. Every new detection starts the time again.", "Bei Bewegung: wie lange das Licht anbleibt, nachdem kein Melder der Regel mehr jemanden erkennt. Jede neue Erkennung startet die Zeit neu.")],
+        ["warn_seconds", t("Warning", "Vorwarnung"), "s", t("Before switching off, the light dims to half for this long, so you can wave. Motion brings it back. Lights that only switch go off without a warning.", "Vor dem Ausschalten dimmt das Licht so lange auf die Hälfte, damit du winken kannst. Bewegung holt es zurück. Leuchten, die nur schalten, gehen ohne Vorwarnung aus."), "warn"],
+        ["lock", t("Lock", "Sperrzeit"), "s", t("After somebody switches a light off by hand, motion is ignored for this long, so it does not come back on while you leave the room.", "Schaltet jemand eine Leuchte von Hand aus, wird Bewegung so lange ignoriert, damit sie beim Hinausgehen nicht wieder angeht.")],
+      ]
+        .map(([f, label, unit, text, toggle]) => `<div class="r"><b>${esc(label)}</b><span class="meta">${esc(text)}</span><span class="cell">${toggle ? `<label class="opt"><input type="checkbox" data-default="${toggle}" ${d[toggle] ? "checked" : ""}> ${esc(t("on", "an"))}</label>` : ""}<input class="field num" type="number" min="0" data-default="${f}" value="${esc(d[f])}" aria-label="${esc(label)}"><span class="opt">${unit}</span></span></div>`)
+        .join("")}</div>
       <details><summary>${esc(t("In automations", "In Automationen"))}</summary>
         <p class="note" style="margin:8px 0">${esc(t("The rhythm is a device with triggers, conditions and actions. States use the keys, not the names. A trigger can fire before a planned time, for example 15 minutes before wake-up.", "Der Rhythmus ist ein Gerät mit Triggern, Bedingungen und Aktionen. Zustände nutzen die Schlüssel, nicht die Namen. Ein Trigger kann vor einer geplanten Zeit feuern, zum Beispiel 15 Minuten vor dem Aufstehen."))}</p>
         <pre>${esc(`triggers:
@@ -1367,6 +1492,12 @@ data:
         toggle_off: `${t("switched off", "ausgeschaltet")} (${item.by === "button" ? t("button", "Taster") : t("action", "Aktion")})`,
         toggle_ignored: t("button pressed, but the row does not switch on", "Taster gedrückt, aber die Zeile schaltet nicht ein"),
         test: `${t("test of the row", "Test der Zeile")} ${name(item.row)}`,
+        fade_start: `${name(item.to)} ${t("began, fade started", "begann, Verlauf gestartet")} (${lights})`,
+        fade_cancelled: `${light(item.light || "")}: ${t("fade stopped", "Verlauf unterbrochen")}${item.by === "by_hand" ? ` ${t("by hand", "von Hand")}` : ""}`,
+        fade_paused: `${light(item.light || "")}: ${t("fade held, the time of day is pinned", "Verlauf angehalten, die Tageszeit ist festgesetzt")}`,
+        fade_resumed: `${light(item.light || "")}: ${t("fade resumed", "Verlauf fortgesetzt")}`,
+        fade_moved: `${light(item.light || "")}: ${t("the end moved, the fade follows", "das Ende hat sich verschoben, der Verlauf folgt")}`,
+        command_error: `${light(item.entity || "")}: ${item.error}`,
         forget: t("memory cleared", "Gedächtnis gelöscht"),
         active: t("rule switched on", "Regel eingeschaltet"),
         paused: t("rule paused", "Regel pausiert"),
@@ -1406,6 +1537,14 @@ data:
     const lights = d.lights
       .map((l) => `<div class="r"><span class="dot" style="background:${l.on ? "var(--accent)" : "var(--line)"}"></span><div><b>${esc(l.name)}</b><div class="meta">${l.memory?.values?.on ? `${Math.round(l.memory.values.brightness || 0)} %${l.memory.values.kelvin ? ` · ${l.memory.values.kelvin} K` : ""} · ${esc(fmtTime(this._hass, l.memory.at))}` : ""}</div></div><button class="btn sm" data-act="forget" data-e="${esc(l.entity_id)}">${esc(t("Forget", "Vergessen"))}</button></div>`)
       .join("");
+    const fades = (d.fades || [])
+      .map((f) => `<div class="r"><span class="tile sm" style="background:var(--accent-soft);color:var(--accent)">${icon("mdi:weather-sunset-up", 15)}</span><div><b>${esc(f.name)}</b> <span class="pill soft">${esc(f.rule_name)}</span><div class="meta">${esc(`${Math.round(f.begin)} → ${Math.round(f.target)} %, ${fmtTime(this._hass, f.start)}–${fmtTime(this._hass, f.end)} · ${t("now", "jetzt")} ${Math.round(f.value)} % · ${f.state === "running" ? t("running", "läuft") : f.state === "paused" ? t("held", "angehalten") : t("stopped by hand", "von Hand unterbrochen")}`)}</div></div>${f.state === "cancelled" ? `<button class="btn sm" data-act="fade-resume" data-e="${esc(f.light)}">${esc(t("Resume", "Fortsetzen"))}</button>` : "<span></span>"}</div>`)
+      .join("");
+    const actions = (d.actions || [])
+      .filter((a) => a.next)
+      .sort((a, b) => a.next.localeCompare(b.next))
+      .map((a) => `<div class="r"><span class="tile sm" style="background:var(--accent-soft);color:var(--accent)">${icon(DOMAIN_ICON[a.entity.split(".")[0]] || "mdi:devices", 15)}</span><div><b>${esc(friendly(this._hass, a.entity))}</b> → ${esc(a.value)}<div class="meta">${esc(`${fmtDate(this._hass, a.next, { weekday: "short", day: "numeric", month: "short" })} ${fmtTime(this._hass, a.next)} · ${Math.abs(a.offset)} min ${a.offset < 0 ? t("before", "vor") : t("after", "nach")} ${a.edge === "start" ? t("the start of", "dem Beginn von") : t("the end of", "dem Ende von")} ${this._look(a.tod).name} · ${a.rule_name}`)}</div></div><span></span></div>`)
+      .join("");
     const rows = d.log.map((item) => `<tr><td>${esc(fmtDate(this._hass, item.at, { day: "numeric", month: "short" }))} ${esc(fmtTime(this._hass, item.at))}</td><td>${esc(this._logText(item))}</td></tr>`).join("");
     const cals = Object.entries(d.calendars)
       .map(([cal, s]) => `<div class="r"><span class="tile sm" style="background:${s.error ? "var(--warn-soft)" : "var(--good-soft)"};color:${s.error ? "var(--warn)" : "var(--good)"}">${icon("mdi:calendar", 15)}</span><div><b>${esc(friendly(this._hass, cal))}</b><div class="meta">${esc(s.fetched ? `${s.events} ${t("events", "Termine")} · ${fmtDate(this._hass, s.fetched, { day: "numeric", month: "short" })} ${fmtTime(this._hass, s.fetched)}` : "")}${s.error ? ` ${esc(s.error)}` : ""}</div></div>${s.error ? `<span class="pill warn">${esc(t("not readable", "nicht lesbar"))}</span>` : `<span class="pill ok">${esc(t("read", "gelesen"))}</span>`}</div>`)
@@ -1417,6 +1556,8 @@ data:
       ${facts}
       ${rules ? `<section class="sec"><div class="hrow"><h2>${esc(t("Rules", "Regeln"))}</h2></div><div class="rows">${rules}</div></section>` : ""}
       ${lights ? `<section class="sec"><div class="hrow"><h2>${esc(t("Set by hand", "Von Hand eingestellt"))}</h2></div><div class="rows">${lights}</div></section>` : ""}
+      ${fades ? `<section class="sec"><div class="hrow"><h2>${esc(t("Fades", "Verläufe"))}</h2></div><div class="rows">${fades}</div></section>` : ""}
+      ${actions ? `<section class="sec"><div class="hrow"><h2>${esc(t("Coming actions", "Geplante Aktionen"))}</h2></div><div class="rows">${actions}</div></section>` : ""}
       <section class="sec"><div class="hrow"><h2>${esc(t("What happened", "Was passiert ist"))}</h2>${this._info("log")}</div>
         ${this._infoText("log", t("The latest changes and decisions, newest first, to answer “Why did the light do that?”.", "Die letzten Wechsel und Entscheidungen, neueste zuerst, damit sich „Warum hat die Leuchte das getan?“ beantworten lässt."))}
         ${rows ? `<div class="wrapx"><table class="tbl log"><tbody>${rows}</tbody></table></div>` : `<p class="note">${esc(t("Nothing yet.", "Noch nichts."))}</p>`}</section>
@@ -1456,6 +1597,14 @@ data:
   // -- pickers from Home Assistant --------------------------------------------------------------------
 
   _mountPickers() {
+    // Home Assistant's icon picker reports its choice only on itself, without bubbling, so each one gets its own listener.
+    this.shadowRoot.querySelectorAll("ha-icon-picker").forEach((el) => {
+      el.hass = this._hass;
+      if (!el._maestroListens) {
+        el._maestroListens = true;
+        el.addEventListener("value-changed", (e) => this._onPicker(e));
+      }
+    });
     if (!customElements.get("ha-icon-picker") && !this._waitingForPicker && this.shadowRoot.querySelector("[data-field='icon']")) {
       this._waitingForPicker = true;
       loadIconPicker().then((ready) => ready && this._renderMain());
@@ -1463,7 +1612,7 @@ data:
   }
 
   _onPicker(e) {
-    const el = e.target;
+    const el = e.currentTarget || e.target;
     if (el.tagName !== "HA-ICON-PICKER" || el.dataset.tod === undefined) return;
     e.stopPropagation();
     const value = e.detail?.value ?? el.value;
@@ -1577,7 +1726,7 @@ data:
         for (const m of work.models) m.entries = m.entries.filter((x) => x.tod !== key);
         for (const r of work.rules) {
           delete r.rows[key];
-          for (const d of r.devices) delete d.values[key];
+          r.actions = r.actions.filter((a) => a.tod !== key);
         }
       });
     } else if (act === "color") {
@@ -1683,8 +1832,8 @@ data:
       this._edit(
         (work) => {
           const rule = src
-            ? { ...clone(src), id, name, lights: [], motion: [], buttons: [], lux: null, devices: src.devices.map((d) => ({ entity: d.entity, values: clone(d.values) })) }
-            : { id, name, active: true, lights: [], motion: [], buttons: [], manual: true, lux: null, manual_after: "same", external_on: "apply", warn: null, lock: null, rows: this._defaultRows(work), devices: [] };
+            ? { ...clone(src), id, name, lights: [], motion: [], buttons: [], lux: null, actions: [] }
+            : { id, name, active: true, lights: [], motion: [], buttons: [], manual: true, lux: null, manual_after: "same", external_on: "apply", warn: null, lock: null, fade_hold: true, rows: this._defaultRows(work), actions: [] };
           work.rules.push(rule);
           this._open.add(`rule-${id}`);
         },
@@ -1695,31 +1844,34 @@ data:
       this._confirm = null;
       this._edit((work) => (work.rules = work.rules.filter((r) => r.id !== el.dataset.id)), { preview: false });
     } else if (act === "pick") {
-      this._pick = { rule: el.dataset.rule, kind: el.dataset.kind };
-      this._pickQuery = "";
+      const same = this._pick?.rule === el.dataset.rule && this._pick?.kind === el.dataset.kind;
+      this._pick = same ? null : { rule: el.dataset.rule, kind: el.dataset.kind, query: "", room: "", cat: undefined };
       this._renderMain();
       this.shadowRoot.getElementById("pickSearch")?.focus();
+    } else if (act === "pick-cat") {
+      this._pick.cat = el.dataset.cat;
+      this._renderMain();
     } else if (act === "pick-close") {
       this._pick = null;
       this._renderMain();
     } else if (act === "pick-add") {
       const id = el.dataset.e,
-        kind = el.dataset.kind;
+        kind = el.dataset.kind,
+        cat = el.dataset.cat;
       this._edit(
         (work) => {
           const rule = work.rules.find((r) => r.id === el.dataset.rule);
           if (kind === "light") rule.lights.push(id);
-          else if (kind === "motion") rule.motion.push(id);
-          else if (kind === "button") rule.buttons.push({ entity: id, event: this._hass.states[id]?.attributes?.event_types?.[0] || null });
-          else if (kind === "lux") rule.lux = { sensor: id, below: 20 };
-          else if (kind === "device") rule.devices.push({ entity: id, values: {} });
+          else if (kind === "trigger" && (cat === "motion" || cat === "contact")) rule.motion.push(id);
+          else if (kind === "trigger" && cat === "button") rule.buttons.push({ entity: id, event: this._hass.states[id]?.attributes?.event_types?.[0] || null });
+          else if (kind === "trigger" && cat === "lux") rule.lux = { sensor: id, below: 20 };
+          else if (kind === "action") rule.actions.push({ entity: id, tod: work.times_of_day[0]?.key || work.base.key, edge: "start", offset: 0, value: this._defaultValue(id) });
         },
         { preview: false },
       );
-      if (kind === "lux") this._pick = null;
+      if (kind === "action") this._pick = null;
       this._renderMain();
-      const search = this.shadowRoot.getElementById("pickSearch");
-      if (search) search.focus();
+      this.shadowRoot.getElementById("pickSearch")?.focus();
     } else if (act === "rm-light" || act === "rm-motion") {
       this._edit(
         (work) => {
@@ -1733,8 +1885,16 @@ data:
       this._edit((work) => work.rules.find((r) => r.id === el.dataset.rule).buttons.splice(Number(el.dataset.i), 1), { preview: false });
     } else if (act === "rm-lux") {
       this._edit((work) => (work.rules.find((r) => r.id === el.dataset.rule).lux = null), { preview: false });
-    } else if (act === "rm-device") {
-      this._edit((work) => work.rules.find((r) => r.id === el.dataset.rule).devices.splice(Number(el.dataset.i), 1), { preview: false });
+    } else if (act === "rm-action") {
+      this._edit((work) => work.rules.find((r) => r.id === el.dataset.rule).actions.splice(Number(el.dataset.i), 1), { preview: false });
+    } else if (act === "test-action") {
+      try {
+        await this._save();
+        await this._hass.callWS({ type: "cloudless_maestro/action/test", entry_id: this._r.entry_id, rule: el.dataset.rule, index: Number(el.dataset.i) });
+        this._toast(t("Done", "Ausgeführt"));
+      } catch (err) {
+        this._toast(err?.message || String(err));
+      }
     } else if (act === "preset") {
       this._edit((work) => (this._rowOf(work, el.dataset.rule, el.dataset.tod).brightness = Number(el.dataset.v)), { preview: false });
     } else if (act === "color-none") {
@@ -1770,6 +1930,13 @@ data:
         this._sidebar = res.sidebar;
         this._toast(this._sidebar ? t("The page is back in the sidebar after a reload.", "Nach dem Neuladen steht die Seite wieder in der Seitenleiste.") : t("Removed. Reload the page to see the sidebar without it.", "Entfernt. Lade die Seite neu, dann fehlt der Eintrag."));
         this._renderMain();
+      } catch (err) {
+        this._toast(err?.message || String(err));
+      }
+    } else if (act === "fade-resume") {
+      try {
+        await this._hass.callWS({ type: "cloudless_maestro/fade/resume", entry_id: this._r.entry_id, lights: [el.dataset.e] });
+        this._renderDiag(this.shadowRoot.getElementById("main"));
       } catch (err) {
         this._toast(err?.message || String(err));
       }
@@ -1825,14 +1992,14 @@ data:
 
   _defaultRows(work) {
     const rows = {};
-    for (const tod of work.times_of_day) rows[tod.key] = { react: "on", brightness: 100, color: null, after: null, begin: "follow_free", transition: null, memory: null, forget: false, lux_below: null };
-    rows[work.base.key] = { react: "off_only", brightness: null, color: null, after: null, begin: "off", transition: null, memory: null, forget: false, lux_below: null };
+    for (const tod of work.times_of_day) rows[tod.key] = { react: "on", brightness: 100, color: null, after: null, begin: "follow_free", transition: null, memory: null, forget: false, lux_below: null, fade: false, fade_to: null };
+    rows[work.base.key] = { react: "off_only", brightness: null, color: null, after: null, begin: "off", transition: null, memory: null, forget: false, lux_below: null, fade: false, fade_to: null };
     return rows;
   }
 
   _rowOf(work, ruleId, key) {
     const rule = work.rules.find((r) => r.id === ruleId);
-    if (!rule.rows[key]) rule.rows[key] = { react: "on", brightness: 100, color: null, after: null, begin: "follow_free", transition: null, memory: null, forget: false, lux_below: null };
+    if (!rule.rows[key]) rule.rows[key] = { react: "on", brightness: 100, color: null, after: null, begin: "follow_free", transition: null, memory: null, forget: false, lux_below: null, fade: false, fade_to: null };
     return rule.rows[key];
   }
 
@@ -1864,6 +2031,13 @@ data:
       this._resetSelection();
       this._render();
       this._subscribe();
+      return;
+    }
+    if (el.id === "pickRoom") {
+      this._pick.room = el.value;
+      const list = this.shadowRoot.getElementById("pickList");
+      const rule = this._rule(this._pick.rule);
+      if (list && rule) list.innerHTML = this._pickListHTML(rule, this._pick.kind);
       return;
     }
     if (el.id === "importFile") {
@@ -1936,19 +2110,26 @@ data:
       this._edit((work) => (work.calendar_links[Number(el.dataset.link)][el.dataset.field] = el.dataset.field === "match" ? el.value.trim() : el.value), { render: false, preview: false });
     } else if (el.dataset.rule && el.dataset.button !== undefined) {
       this._edit((work) => (work.rules.find((r) => r.id === el.dataset.rule).buttons[Number(el.dataset.button)].event = el.value || null), { render: false, preview: false });
-    } else if (el.dataset.rule && el.dataset.device !== undefined) {
+    } else if (el.dataset.rule && el.dataset.action !== undefined) {
+      const f = el.dataset.f;
       this._edit(
         (work) => {
-          const device = work.rules.find((r) => r.id === el.dataset.rule).devices[Number(el.dataset.device)];
-          const v = el.value;
-          if (v === "") delete device.values[el.dataset.tod];
-          else device.values[el.dataset.tod] = el.type === "number" ? Number(v) : v;
+          const action = work.rules.find((r) => r.id === el.dataset.rule).actions[Number(el.dataset.action)];
+          if (f === "when") {
+            const minutes = Math.abs(action.offset) || 30;
+            action.edge = el.value.startsWith("end") ? "end" : "start";
+            action.offset = el.value.endsWith("-") ? -minutes : el.value.endsWith("+") ? minutes : 0;
+          } else if (f === "minutes") {
+            const minutes = Math.min(720, Math.max(1, Math.round(Number(el.value) || 1)));
+            action.offset = action.offset < 0 ? -minutes : minutes;
+          } else if (f === "tod") action.tod = el.value;
+          else if (f === "value") action.value = el.type === "number" ? Number(el.value) : el.value;
         },
-        { render: false, preview: false },
+        { preview: false, render: f === "when" || f === "tod" },
       );
     } else if (el.dataset.rule && el.dataset.tod) {
       const f = el.dataset.f;
-      const render = ["react", "copy_row", "color_mode", "kelvin", "hue"].includes(f);
+      const render = ["react", "copy_row", "color_mode", "kelvin", "hue", "begin"].includes(f);
       this._edit(
         (work) => {
           const row = this._rowOf(work, el.dataset.rule, el.dataset.tod);
@@ -1960,7 +2141,11 @@ data:
           } else if (f === "color_mode") row.color = el.value === "rgb" ? { rgb: hueRgb(30) } : { kelvin: 3000 };
           else if (f === "kelvin") row.color = { kelvin: Number(el.value) };
           else if (f === "hue") row.color = { rgb: hueRgb(Number(el.value)) };
-          else if (f === "react" || f === "begin") row[f] = el.value;
+          else if (f === "react") {
+            row.react = el.value === "fade" ? "on" : el.value;
+            row.fade = el.value === "fade";
+            if (row.fade && !row.brightness) row.brightness = 1;
+          } else if (f === "begin") row[f] = el.value;
           else row[f] = num(el.value);
         },
         { preview: false, render },
@@ -1970,7 +2155,7 @@ data:
       this._edit(
         (work) => {
           const rule = work.rules.find((r) => r.id === el.dataset.rule);
-          if (f === "active" || f === "manual" || f === "warn") rule[f] = el.checked;
+          if (f === "active" || f === "manual" || f === "warn" || f === "fade_hold") rule[f] = el.checked;
           else if (f === "name") {
             if (el.value.trim()) rule.name = el.value.trim();
           } else if (f === "lux_below") rule.lux.below = Number(el.value) || 0;
@@ -1995,7 +2180,7 @@ data:
   _onInput(e) {
     const el = e.target;
     if (el.id === "pickSearch") {
-      this._pickQuery = el.value;
+      this._pick.query = el.value;
       const list = this.shadowRoot.getElementById("pickList");
       const rule = this._rule(this._pick?.rule);
       if (list && rule) list.innerHTML = this._pickListHTML(rule, this._pick.kind);

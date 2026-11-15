@@ -4,7 +4,11 @@
       "user": {
         "title": "New rhythm",
         "description": "A rhythm is one daily schedule, for example for the flat, a terrarium or a child's room. Times of day, day models, the week plan and the rules are set up on the **Maestro** page in the sidebar.",
-        "data": { "name": "Name", "template": "Start with", "palette": "Colors" }
+        "data": {
+          "name": "Name",
+          "template": "Start with",
+          "palette": "Colors"
+        }
       }
     }
   },
@@ -40,19 +44,33 @@
   },
   "entity": {
     "sensor": {
-      "time_of_day": { "name": "Time of day" },
-      "model": { "name": "Day model" },
-      "next_change": { "name": "Next change" },
-      "progress": { "name": "Progress" }
+      "time_of_day": {
+        "name": "Time of day"
+      },
+      "model": {
+        "name": "Day model"
+      },
+      "next_change": {
+        "name": "Next change"
+      },
+      "progress": {
+        "name": "Progress"
+      }
     },
     "select": {
-      "choose": { "name": "Choose time of day" }
+      "choose": {
+        "name": "Choose time of day"
+      }
     },
     "binary_sensor": {
-      "overridden": { "name": "Overridden" }
+      "overridden": {
+        "name": "Overridden"
+      }
     },
     "switch": {
-      "rule_active": { "name": "Rule {name}" }
+      "rule_active": {
+        "name": "Rule {name}"
+      }
     }
   },
   "device_automation": {
@@ -76,10 +94,22 @@
       "name": "Pin a time of day",
       "description": "Sets a time of day of today's model, or the base state, until a chosen end. Pinning the current time of day holds it. A new pin replaces the previous one.",
       "fields": {
-        "time_of_day": { "name": "Time of day", "description": "The key of the time of day, for example einschlafen. The Maestro page shows every key." },
-        "until": { "name": "End", "description": "Until the next change: until the plan begins a later time of day or the day ends. A duration or a time ends when the next day begins at the latest." },
-        "duration": { "name": "Duration", "description": "For the end “For a duration”." },
-        "time": { "name": "Time", "description": "For the end “Until a time”." }
+        "time_of_day": {
+          "name": "Time of day",
+          "description": "The key of the time of day, for example einschlafen. The Maestro page shows every key."
+        },
+        "until": {
+          "name": "End",
+          "description": "Until the next change: until the plan begins a later time of day or the day ends. A duration or a time ends when the next day begins at the latest."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "For the end “For a duration”."
+        },
+        "time": {
+          "name": "Time",
+          "description": "For the end “Until a time”."
+        }
       }
     },
     "resume": {
@@ -90,17 +120,32 @@
       "name": "Adjust a day",
       "description": "Changes a single date: another day model, other start times, another day end. Only what you name changes, the rest follows the model.",
       "fields": {
-        "date": { "name": "Date", "description": "Without a date, today. Before a day begins, today is the coming day." },
-        "model": { "name": "Day model", "description": "The key of another day model for this date." },
-        "times": { "name": "Start times", "description": "Times of day with new start times, for example einschlafen: 23:30. Add +1 for the following day, for example 01:00+1." },
-        "end": { "name": "Day end", "description": "A new day end, for example 00:30+1." }
+        "date": {
+          "name": "Date",
+          "description": "Without a date, today. Before a day begins, today is the coming day."
+        },
+        "model": {
+          "name": "Day model",
+          "description": "The key of another day model for this date."
+        },
+        "times": {
+          "name": "Start times",
+          "description": "Times of day with new start times, for example einschlafen: 23:30. Add +1 for the following day, for example 01:00+1."
+        },
+        "end": {
+          "name": "Day end",
+          "description": "A new day end, for example 00:30+1."
+        }
       }
     },
     "clear_day": {
       "name": "Remove a day adjustment",
       "description": "The date follows the plan again.",
       "fields": {
-        "date": { "name": "Date", "description": "Without a date, today." }
+        "date": {
+          "name": "Date",
+          "description": "Without a date, today."
+        }
       }
     },
     "refresh_calendars": {
@@ -111,15 +156,34 @@
       "name": "Toggle a rule",
       "description": "Switches a rule's lights like a button of the rule would: off when any of them is on, otherwise on with the values of the current time of day or the remembered values.",
       "fields": {
-        "rule": { "name": "Rule", "description": "The name or the key of the rule." },
-        "mode": { "name": "Mode", "description": "Toggle, or always on or off." }
+        "rule": {
+          "name": "Rule",
+          "description": "The name or the key of the rule."
+        },
+        "mode": {
+          "name": "Mode",
+          "description": "Toggle, or always on or off."
+        }
       }
     },
     "forget": {
       "name": "Forget manual settings",
       "description": "Forgets what was set by hand, so the lights go on with the values of the time of day again.",
       "fields": {
-        "lights": { "name": "Lights", "description": "Without lights, all lights of the rhythm." }
+        "lights": {
+          "name": "Lights",
+          "description": "Without lights, all lights of the rhythm."
+        }
+      }
+    },
+    "resume_fade": {
+      "name": "Resume a fade",
+      "description": "Continues a fade over the time of day that was stopped by hand: the light goes to where the fade would be by now and runs on to the end.",
+      "fields": {
+        "lights": {
+          "name": "Lights",
+          "description": "Without lights, all stopped fades of the rhythm."
+        }
       }
     }
   }

@@ -84,20 +84,6 @@ async def async_attach_trigger(
     return await event_trigger.async_attach_trigger(hass, event_config, action, trigger_info, platform_type="device")
 
 
-def _next_moment(rhythm: Rhythm, key: str, kind: str, offset: timedelta, now: datetime) -> datetime | None:
-    """Return the next moment the trigger fires: a planned begin or end of the time of day, shifted."""
-    timeline = rhythm.timeline
-    if timeline is None:
-        return None
-    for segment in timeline.segments:
-        if segment.key != key:
-            continue
-        moment = (segment.start if kind == TRIGGER_BEGINS else segment.end) + offset
-        if moment > now:
-            return moment
-    return None
-
-
 @callback
 def _attach_offset(
     hass: HomeAssistant,
@@ -109,7 +95,6 @@ def _attach_offset(
 ) -> CALLBACK_TYPE:
     key = config[ATTR_TIME_OF_DAY]
     kind = config[CONF_TYPE]
-    offset = timedelta(minutes=offset_minutes)
     timer: list[CALLBACK_TYPE | None] = [None]
     planned: list[datetime | None] = [None]
     fired: list[datetime | None] = [None]
@@ -143,9 +128,13 @@ def _attach_offset(
     def schedule() -> None:
         # A moment that just passed may still be waiting to fire in the same loop turn; keep its timer.
         now = dt_util.utcnow() - timedelta(seconds=30)
-        moment = _next_moment(rhythm, key, kind, offset, now)
+        moment = rhythm.next_edge(key, "start" if kind == TRIGGER_BEGINS else "end", offset_minutes, now)
         if moment == fired[0]:
-            moment = _next_moment(rhythm, key, kind, offset, fired[0]) if fired[0] else None
+            moment = (
+                rhythm.next_edge(key, "start" if kind == TRIGGER_BEGINS else "end", offset_minutes, fired[0])
+                if fired[0]
+                else None
+            )
         if moment == planned[0] and timer[0] is not None:
             return
         if timer[0] is not None:
