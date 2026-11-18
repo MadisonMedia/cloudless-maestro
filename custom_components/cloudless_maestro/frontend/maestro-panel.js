@@ -410,6 +410,7 @@ class MaestroPanel extends HTMLElement {
         (snap) => {
           this._snap = snap;
           this._renderLive();
+          if (snap.rev && r.rev && snap.rev !== r.rev) this._adoptElsewhere(r);
         },
         { type: "cloudless_maestro/subscribe", entry_id: r.entry_id },
       );
@@ -439,7 +440,10 @@ class MaestroPanel extends HTMLElement {
 
   _changed({ render = true, preview = true } = {}) {
     clearTimeout(this._saveTimer);
-    this._saveTimer = setTimeout(() => this._save(), 500);
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null;
+      this._save();
+    }, 500);
     if (preview) {
       clearTimeout(this._previewTimer);
       this._previewTimer = setTimeout(() => {
@@ -454,13 +458,53 @@ class MaestroPanel extends HTMLElement {
   async _save() {
     const r = this._r;
     if (!r) return;
+    if (this._saving) {
+      // One save at a time: the next one goes with the revision the running one brings back.
+      clearTimeout(this._saveTimer);
+      this._saveTimer = setTimeout(() => {
+        this._saveTimer = null;
+        this._save();
+      }, 300);
+      return;
+    }
+    this._saving = true;
     try {
-      const res = await this._hass.callWS({ type: "cloudless_maestro/rhythm/save", entry_id: r.entry_id, title: r.title, options: r.work });
+      const res = await this._hass.callWS({ type: "cloudless_maestro/rhythm/save", entry_id: r.entry_id, title: r.title, options: r.work, ...(r.rev ? { rev: r.rev } : {}) });
       r.options = res.options;
+      if (res.rev) r.rev = res.rev;
       this._setError(null);
       this._toast(this._t("Saved", "Gespeichert"));
     } catch (err) {
-      this._setError(err?.message || String(err));
+      if (err?.code === "changed_elsewhere") {
+        // Somebody changed the settings elsewhere, for example with a rule's switch. Nothing was overwritten.
+        await this._adoptElsewhere(r, true);
+        this._setError(this._t("The settings were changed elsewhere and are loaded anew. Please make your last change again.", "Die Einstellungen wurden woanders geändert und neu geladen. Bitte mach deine letzte Änderung noch einmal."));
+      } else {
+        this._setError(err?.message || String(err));
+      }
+    } finally {
+      this._saving = false;
+    }
+  }
+
+  async _adoptElsewhere(r, force = false) {
+    // Take over settings changed elsewhere, unless a change of this page is about to be saved.
+    if (!force && (this._saveTimer || this._saving || this._adopting)) return;
+    this._adopting = true;
+    try {
+      const list = await this._hass.callWS({ type: "cloudless_maestro/rhythms" });
+      const fresh = list.find((x) => x.entry_id === r.entry_id);
+      if (!fresh || (!force && (this._saveTimer || this._saving))) return;
+      Object.assign(r, { title: fresh.title, options: fresh.options, work: clone(fresh.options), rev: fresh.rev, entities: fresh.entities });
+      if (r !== this._r) return;
+      this._undo = [];
+      const focused = this.shadowRoot.activeElement;
+      if (!focused || !["INPUT", "SELECT", "TEXTAREA"].includes(focused.tagName)) this._renderMain();
+      else this._renderUndo();
+    } catch {
+      // The next snapshot tries again.
+    } finally {
+      this._adopting = false;
     }
   }
 
@@ -999,7 +1043,7 @@ class MaestroPanel extends HTMLElement {
         <div class="wrapx"><table class="tbl rowtbl"><thead><tr><th>${esc(t("Time of day", "Tageszeit"))}</th><th>${esc(t("Reaction", "Reaktion"))}</th><th>${esc(rule.lights.some((e) => this._lightInfo(e).crescendo) ? t("Position", "Position") : t("Brightness", "Helligkeit"))}</th>${rule.lights.length && rule.lights.every((e) => this._lightInfo(e).crescendo) ? "" : `<th>${esc(t("Color", "Farbe"))}</th>`}<th title="${esc(t("With motion: after nobody is seen any more. With a button: after switching on.", "Bei Bewegung: nachdem niemand mehr erkannt wird. Mit Taster: nach dem Einschalten."))}">${esc(t("Time until off", "Nachlaufzeit"))}</th><th>${esc(t("At the start", "Beim Beginn"))}</th><th></th></tr></thead>
           <tbody>${this._allTods().map((tod) => this._ruleRow(rule, tod)).join("")}</tbody></table></div></div>
       <div><div class="hrow"><span class="sub">${esc(t("Devices and actions", "Geräte und Aktionen"))}</span>${this._info(`dev-${rule.id}`)}</div>
-        ${this._infoText(`dev-${rule.id}`, t("A device gets its value once, at a moment you choose: at, before or after the start or the end of a time of day. For example the bathroom heating 60 minutes before the start of wake-up, or the blind at the end of the evening, whatever comes next. A scene or script starts. After that you may change the device; Maestro steps in again the next time.", "Ein Gerät bekommt seinen Wert einmal, zu einem Zeitpunkt deiner Wahl: bei, vor oder nach Beginn oder Ende einer Tageszeit. Zum Beispiel die Heizung im Bad 60 Minuten vor dem Beginn von Aufstehen, oder das Rollo am Ende des Abends, egal was danach kommt. Eine Szene oder ein Skript startet. Danach darfst du das Gerät verstellen; Maestro greift erst beim nächsten Mal wieder ein."))}
+        ${this._infoText(`dev-${rule.id}`, t("A device gets its value once, at a moment you choose: at, before or after the start or the end of a time of day. For example the bathroom heating 60 minutes before the start of wake-up, or the blind at the end of the evening, whatever comes next. A scene or script starts. After that you may change the device; Maestro steps in again the next time. An action with an offset runs once for each begin or end; a pinned time of day is the same one when it overlaps or touches the planned time of day, otherwise one of its own. When its moment is missed, because Home Assistant was not running or because the time moved into the past, it follows while the time of day that begins there is still running, and it does not run again when the time moves later.", "Ein Gerät bekommt seinen Wert einmal, zu einem Zeitpunkt deiner Wahl: bei, vor oder nach Beginn oder Ende einer Tageszeit. Zum Beispiel die Heizung im Bad 60 Minuten vor dem Beginn von Aufstehen, oder das Rollo am Ende des Abends, egal was danach kommt. Eine Szene oder ein Skript startet. Danach darfst du das Gerät verstellen; Maestro greift erst beim nächsten Mal wieder ein. Eine Aktion mit Versatz läuft einmal pro Beginn oder Ende; eine festgesetzte Tageszeit ist derselbe Anlass, wenn sie die geplante überdeckt oder berührt, sonst ein eigener. Wird ihr Zeitpunkt verpasst, weil Home Assistant nicht lief oder die Zeit in die Vergangenheit rückte, holt Maestro sie nach, solange die Tageszeit läuft, die dort beginnt, und verschiebt sich die Zeit danach nach hinten, läuft sie nicht noch einmal."))}
         ${rule.actions.length ? `<div class="wrapx"><table class="tbl"><thead><tr><th>${esc(t("When", "Wann"))}</th><th>${esc(t("Device", "Gerät"))}</th><th>${esc(t("Value", "Wert"))}</th><th></th><th></th></tr></thead><tbody>${this._actionRows(rule)}</tbody></table></div>` : ""}
         <div class="add"><button class="link" data-act="pick" data-rule="${esc(rule.id)}" data-kind="action">${esc(t("+ Add a device or action", "+ Gerät oder Aktion hinzufügen"))}</button></div>${picker("action")}</div>
     </div>`;
@@ -1293,7 +1337,7 @@ class MaestroPanel extends HTMLElement {
         ${loc ? `<input class="field num" id="lat" type="number" step="0.0001" min="-90" max="90" value="${esc(loc.latitude)}" aria-label="${esc(t("Latitude", "Breitengrad"))}" style="width:110px"><input class="field num" id="lon" type="number" step="0.0001" min="-180" max="180" value="${esc(loc.longitude)}" aria-label="${esc(t("Longitude", "Längengrad"))}" style="width:110px">` : ""}</div>
       <div class="hrow"><span class="sub">${esc(t("Defaults for the rules", "Standardwerte für Regeln"))}</span></div>
       <div class="rows defs">${[
-        ["transition", t("Transition", "Übergang"), "s", t("How long switching on and changing takes when a row says nothing else. Crescendo objects take their own speed.", "Wie lange Einschalten und Umschalten dauern, wenn eine Zeile nichts anderes sagt. Crescendo-Objekte nehmen ihr eigenes Tempo.")],
+        ["transition", t("Transition", "Übergang"), "s", t("How long lights that are on take to follow a new time of day, when a row says nothing else. Switching on is quick. Crescendo objects take their own speed.", "Wie lange eingeschaltete Leuchten brauchen, um einer neuen Tageszeit zu folgen, wenn eine Zeile nichts anderes sagt. Einschalten geht schnell. Crescendo-Objekte nehmen ihr eigenes Tempo.")],
         ["memory", t("Memory", "Merkdauer"), "min", t("For this long, a light set by hand gets its values back when it goes on again. Afterwards the row applies. 0 means never remember.", "So lange bekommt eine von Hand eingestellte Leuchte ihre Werte zurück, wenn sie wieder angeht. Danach gilt die Zeile. 0 heißt nie merken.")],
         ["after", t("Time until off", "Nachlaufzeit"), "min", t("With motion: how long the light stays on after no sensor of the rule sees anybody any more. Every new detection starts the time again.", "Bei Bewegung: wie lange das Licht anbleibt, nachdem kein Melder der Regel mehr jemanden erkennt. Jede neue Erkennung startet die Zeit neu.")],
         ["warn_seconds", t("Warning", "Vorwarnung"), "s", t("Before switching off, the light dims to half for this long, so you can wave. Motion brings it back. Lights that only switch go off without a warning.", "Vor dem Ausschalten dimmt das Licht so lange auf die Hälfte, damit du winken kannst. Bewegung holt es zurück. Leuchten, die nur schalten, gehen ohne Vorwarnung aus."), "warn"],
@@ -1486,7 +1530,7 @@ data:
         bright: t("bright enough, no light", "hell genug, kein Licht"),
         begin_off: `${name(item.to)} ${t("began, switched off", "begann, ausgeschaltet")} (${lights})`,
         follow: `${name(item.to)} ${t("began, lights follow", "begann, Leuchten folgen")} (${lights})`,
-        device: `${light(item.entity || "")} → ${item.value}`,
+        device: `${light(item.entity || "")} → ${item.value}${item.planned ? ` (${t("caught up, planned", "nachgeholt, geplant")} ${fmtTime(this._hass, item.planned)})` : ""}`,
         device_error: `${light(item.entity || "")}: ${item.error}`,
         toggle_on: `${t("switched on", "eingeschaltet")} (${item.by === "button" ? t("button", "Taster") : t("action", "Aktion")})`,
         toggle_off: `${t("switched off", "ausgeschaltet")} (${item.by === "button" ? t("button", "Taster") : t("action", "Aktion")})`,
@@ -1543,7 +1587,7 @@ data:
     const actions = (d.actions || [])
       .filter((a) => a.next)
       .sort((a, b) => a.next.localeCompare(b.next))
-      .map((a) => `<div class="r"><span class="tile sm" style="background:var(--accent-soft);color:var(--accent)">${icon(DOMAIN_ICON[a.entity.split(".")[0]] || "mdi:devices", 15)}</span><div><b>${esc(friendly(this._hass, a.entity))}</b> → ${esc(a.value)}<div class="meta">${esc(`${fmtDate(this._hass, a.next, { weekday: "short", day: "numeric", month: "short" })} ${fmtTime(this._hass, a.next)} · ${Math.abs(a.offset)} min ${a.offset < 0 ? t("before", "vor") : t("after", "nach")} ${a.edge === "start" ? t("the start of", "dem Beginn von") : t("the end of", "dem Ende von")} ${this._look(a.tod).name} · ${a.rule_name}`)}</div></div><span></span></div>`)
+      .map((a) => `<div class="r"><span class="tile sm" style="background:var(--accent-soft);color:var(--accent)">${icon(DOMAIN_ICON[a.entity.split(".")[0]] || "mdi:devices", 15)}</span><div><b>${esc(friendly(this._hass, a.entity))}</b> → ${esc(a.value)}<div class="meta">${esc(`${fmtDate(this._hass, a.next, { weekday: "short", day: "numeric", month: "short" })} ${fmtTime(this._hass, a.next)} · ${a.offset ? `${Math.abs(a.offset)} min ${a.offset < 0 ? t("before", "vor") : t("after", "nach")} ${a.edge === "start" ? t("the start of", "dem Beginn von") : t("the end of", "dem Ende von")}` : a.edge === "start" ? t("at the start of", "bei Beginn von") : t("at the end of", "am Ende von")} ${this._look(a.tod).name} · ${a.rule_name}`)}</div></div><span></span></div>`)
       .join("");
     const rows = d.log.map((item) => `<tr><td>${esc(fmtDate(this._hass, item.at, { day: "numeric", month: "short" }))} ${esc(fmtTime(this._hass, item.at))}</td><td>${esc(this._logText(item))}</td></tr>`).join("");
     const cals = Object.entries(d.calendars)

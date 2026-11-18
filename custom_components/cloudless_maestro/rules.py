@@ -62,6 +62,8 @@ RESUME_TRANSITION = 2
 # Zigbee and Matter limit one transition to about 1 h 49 min; longer fades go in parts.
 MAX_CHUNK = timedelta(seconds=6000)
 LONG_TRANSITION = 300  # seconds; from here on a report must also be near where the fade is by now
+ACTION_GRACE = timedelta(seconds=60)  # an action this late still counts as on time
+ACTION_KEEP_DAYS = 4
 FADE_RUNNING = "running"
 FADE_PAUSED = "paused"
 FADE_CANCELLED = "cancelled"
@@ -328,9 +330,8 @@ class RuleEngine:
         self.fades: dict[str, Fade] = {}  # by light
         self._fade_timers: dict[str, CALLBACK_TYPE] = {}
         self._fade_sent: set[str] = set()  # lights whose fade was sent since Home Assistant started
-        self._action_timers: dict[tuple, CALLBACK_TYPE] = {}
-        self._action_planned: dict[tuple, datetime] = {}
-        self._action_fired: dict[tuple, datetime] = {}
+        self._action_timers: dict[str, CALLBACK_TYPE] = {}
+        self._action_planned: dict[str, datetime] = {}
 
     # -- lifecycle ------------------------------------------------------------------------------------
 
@@ -653,7 +654,11 @@ class RuleEngine:
                 continue
             track = self.tracks.setdefault(entity_id, LightTrack(entity_id))
             values, from_memory = self._values_for(track, row, use_memory)
-            await self._send_on(run, entity_id, values, self._transition(run, row, state))
+            transition = self._transition(run, row, state)
+            if row.get("transition") is None and transition is not None and state.state != STATE_ON:
+                # The default transition is for lights that follow a new time of day. Switching on is quick.
+                transition = QUICK_TRANSITION
+            await self._send_on(run, entity_id, values, transition)
             if from_memory:
                 self._log(run, "memory", light=entity_id, values=values)
             else:
@@ -719,6 +724,7 @@ class RuleEngine:
                     if wanted:
                         await self.apply_row(run, new, wanted, use_memory=False)
                         self._log(run, "follow", to=new, lights=wanted)
+            # Actions right at a begin or an end come with the change itself, also the one after a restart.
             for action in run.rule["actions"]:
                 if action["offset"]:
                     continue
@@ -737,8 +743,8 @@ class RuleEngine:
         runs = self._runs_with(entity_id)
         return bool(runs) and runs[0] is run
 
-    async def _apply_device(self, run: RuleRun, entity_id: str, value: Any) -> None:
-        """Give a device its value for the time of day, once."""
+    async def _apply_device(self, run: RuleRun, entity_id: str, value: Any, planned: datetime | None = None) -> None:
+        """Give a device its value for the time of day, once. Planned is the moment of an action that follows late."""
         domain = entity_id.split(".")[0]
         try:
             if domain == "cover":
@@ -783,7 +789,10 @@ class RuleEngine:
                     {ATTR_ENTITY_ID: entity_id},
                     blocking=True,
                 )
-            self._log(run, "device", entity=entity_id, value=value)
+            if planned is not None:
+                self._log(run, "device", entity=entity_id, value=value, planned=planned.isoformat())
+            else:
+                self._log(run, "device", entity=entity_id, value=value)
         except Exception as err:
             self._log(run, "device_error", entity=entity_id, error=str(err) or type(err).__name__)
 
@@ -1402,59 +1411,103 @@ class RuleEngine:
     # -- actions with an offset -----------------------------------------------------------------------
 
     @staticmethod
-    def _action_key(run: RuleRun, action: Mapping[str, Any]) -> tuple:
-        return (run.id, action["entity"], action["tod"], action["edge"], action["offset"], str(action["value"]))
+    def _action_key(run: RuleRun, action: Mapping[str, Any]) -> str:
+        """Name an action by when it happens. A new value keeps the name, a new moment makes a new action."""
+        return f"{run.id}|{action['entity']}|{action['tod']}|{action['edge']}|{action['offset']}"
 
     @callback
     def _schedule_actions(self) -> None:
-        """Keep one timer per action that comes before or after a begin or an end."""
-        wanted: dict[tuple, tuple[datetime, RuleRun, Mapping[str, Any]]] = {}
-        after = dt_util.utcnow() - timedelta(seconds=30)
+        """Carry out every action with an offset once per occasion, at its moment or as soon as possible after it.
+
+        An action that was missed, because Home Assistant was not running or because the plan moved its moment into
+        the past, follows while the time of day that begins at its edge is still running. One that has run does not
+        run again for the same day when the plan moves it later. An action that is new, or whose rule was paused,
+        starts with the moments still to come.
+        """
+        now = dt_util.utcnow()
+        book: dict[str, Any] = self.rhythm.data.setdefault("actions", {})
+        seen: set[str] = set()
+        changed = False
+        wanted: dict[str, tuple[datetime, RuleRun, Mapping[str, Any]]] = {}
+        due: list[tuple[str, str, datetime, RuleRun, Mapping[str, Any]]] = []
         for run in self.runs:
             if not run.rule["active"]:
                 continue
             for action in run.rule["actions"]:
                 if not action["offset"]:
-                    continue
+                    continue  # comes with the change of the time of day
                 key = self._action_key(run, action)
-                fired = self._action_fired.get(key)
-                moment = self.rhythm.next_edge(action["tod"], action["edge"], action["offset"], after)
-                if moment is not None and fired is not None and moment <= fired:
-                    moment = self.rhythm.next_edge(action["tod"], action["edge"], action["offset"], fired)
-                if moment is not None:
-                    wanted[key] = (moment, run, action)
+                if key in seen:
+                    continue
+                seen.add(key)
+                edges = self.rhythm.edges(action["tod"], action["edge"])
+                offset = timedelta(minutes=action["offset"])
+                entry = book.get(key)
+                if not isinstance(entry, dict) or not isinstance(entry.get("fired"), dict):
+                    # New, or the rule was paused: what has passed counts as done.
+                    entry = book[key] = {"fired": {day: None for day, at, _u in edges if at + offset <= now}}
+                    changed = True
+                for day, edge_at, until in edges:
+                    if day in entry["fired"]:
+                        continue
+                    moment = edge_at + offset
+                    if moment > now:
+                        if key not in wanted or moment < wanted[key][0]:
+                            wanted[key] = (moment, run, action)
+                    elif now < until or now - moment < ACTION_GRACE:
+                        due.append((key, day, moment, run, action))
+        # Forget what belongs to actions that are gone or paused, and days long past.
+        old = (now - timedelta(days=ACTION_KEEP_DAYS)).date().isoformat()
+        for key in list(book):
+            if key not in seen:
+                del book[key]
+                changed = True
+                continue
+            book[key]["fired"] = {d: m for d, m in book[key]["fired"].items() if d >= old}
         for key in list(self._action_timers):
             if key not in wanted or wanted[key][0] != self._action_planned.get(key):
                 self._action_timers.pop(key)()
                 self._action_planned.pop(key, None)
-        for key, (moment, run, action) in wanted.items():
+        for key, (moment, _run, _action) in wanted.items():
             if key in self._action_timers:
                 continue
 
             @callback
-            def fire(
-                _now: datetime, key: tuple = key, moment: datetime = moment, run: RuleRun = run, action=action
-            ) -> None:
+            def fire(_now: datetime, key: str = key) -> None:
                 self._action_timers.pop(key, None)
                 self._action_planned.pop(key, None)
-                self._action_fired[key] = moment
-                self.hass.async_create_task(
-                    self._apply_device(run, action["entity"], action["value"]), eager_start=True
-                )
                 self._schedule_actions()
 
             self._action_planned[key] = moment
             self._action_timers[key] = async_track_point_in_utc_time(self.hass, fire, moment)
+        for key, day, moment, run, action in due:
+            book[key]["fired"][day] = moment.isoformat()
+            late = moment if now - moment >= ACTION_GRACE else None
+            self.hass.async_create_task(
+                self._apply_device(run, action["entity"], action["value"], planned=late), eager_start=True
+            )
+        if due or changed:
+            # Stored at once, so a restart right after it still knows which moments are done.
+            self._save()
 
     def describe_actions(self) -> list[dict[str, Any]]:
-        """Return the coming moments of all actions with an offset."""
+        """Return the coming and the last moments of all actions."""
         out = []
+        book = self.rhythm.data.get("actions") or {}
         for run in self.runs:
             for action in run.rule["actions"]:
                 key = self._action_key(run, action)
                 moment = self._action_planned.get(key)
+                fired = (book.get(key) or {}).get("fired") or {}
+                done = [datetime.fromisoformat(m) for m in fired.values() if m]
                 out.append(
-                    {"rule": run.id, "rule_name": run.name, **action, "next": moment.isoformat() if moment else None}
+                    {
+                        "rule": run.id,
+                        "rule_name": run.name,
+                        **action,
+                        "next": moment.isoformat() if moment else None,
+                        "last": max(done).isoformat() if done else None,
+                    }
                 )
         return out
 

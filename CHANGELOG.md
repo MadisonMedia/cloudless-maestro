@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.0b4
+
+Restart Home Assistant after updating, then reload the browser or app once.
+
+### Added
+
+- **Missed actions follow.** An action with an offset runs once for each begin or end of its time of day; a pinned time of day is the same occasion when it overlaps or touches the planned one, and one of its own otherwise. When its moment is missed, because Home Assistant was not running or because the time was moved into the past, it runs as soon as possible while the time of day that begins at its edge is still running. The log shows it as caught up, with the planned time. Moving the time later after an action has run does not run it again. New actions and rules switched on again start with the moments still to come.
+
+### Changed
+
+- Switching on by motion, button, by hand or with **Test** is quick. The default transition applies to lights that are on and follow a new time of day; a transition set in a row still applies to both.
+
+### Fixed
+
+- An open settings page saved its old copy of the settings and so undid changes made elsewhere, for example a rule paused with its switch. The page now takes over such changes, and a save that would overwrite them is refused with a message.
+- The same goes for the rhythm's name: an open page no longer overwrites a name changed elsewhere.
+
 ## 0.1.0b3
 
 Restart Home Assistant after updating, then reload the browser or app once so the page loads anew. Devices set up in 0.1.0b2 become actions at the start of their time of day and keep working.

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 import copy
+import hashlib
+import json
 import re
 from typing import Any
 
@@ -473,3 +475,9 @@ def default_rows(options: Mapping[str, Any], brightness: int = 100) -> dict[str,
     rows = {t["key"]: ROW({"react": REACT_ON, "brightness": brightness}) for t in options["times_of_day"]}
     rows[options["base"]["key"]] = ROW({"react": REACT_OFF_ONLY, "begin": BEGIN_OFF})
     return rows
+
+
+def revision(options: Mapping[str, Any], title: str) -> str:
+    """Return a short fingerprint of a rhythm's name and settings, so a page notices changes made elsewhere."""
+    data = json.dumps({"title": title, "options": options}, sort_keys=True, default=str)
+    return hashlib.sha1(data.encode()).hexdigest()[:12]

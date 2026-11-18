@@ -20,11 +20,20 @@ from .check import async_light_check
 from .const import CONF_PALETTE, CONF_TEMPLATE, DOMAIN
 from .frontend import async_set_sidebar, sidebar_shown
 from .helpers import rhythm_for_entity, rhythm_for_entry
-from .model import PALETTE_HA, PALETTES, TEMPLATES, normalize_options, service_time, time_of_day_templates
+from .model import (
+    PALETTE_HA,
+    PALETTES,
+    TEMPLATES,
+    normalize_options,
+    revision,
+    service_time,
+    time_of_day_templates,
+)
 from .rhythm import Rhythm
 from .schedule import PIN_MODES, Plan
 
 ERR_INVALID = "invalid"
+ERR_CHANGED = "changed_elsewhere"
 
 
 @callback
@@ -70,6 +79,7 @@ def _describe(hass: HomeAssistant, rhythm: Rhythm) -> dict[str, Any]:
         "title": rhythm.title,
         "device_id": rhythm.device_id,
         "options": rhythm.options,
+        "rev": revision(rhythm.options, rhythm.title),
         "entities": _entities(hass, rhythm.entry.entry_id),
     }
 
@@ -103,6 +113,8 @@ def ws_rhythms(hass: HomeAssistant, connection: websocket_api.ActiveConnection, 
         vol.Required("entry_id"): str,
         vol.Optional("title"): vol.All(str, vol.Strip, vol.Length(min=1, max=60)),
         vol.Required("options"): dict,
+        # The settings the page started from. When they changed elsewhere since, nothing is overwritten.
+        vol.Optional("rev"): str,
     }
 )
 @websocket_api.require_admin
@@ -118,8 +130,11 @@ def ws_save(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg
         connection.send_error(msg["id"], ERR_INVALID, str(err))
         return
     entry = rhythm.entry
+    if "rev" in msg and msg["rev"] != revision(normalize_options(entry.options), entry.title):
+        connection.send_error(msg["id"], ERR_CHANGED, "The settings were changed elsewhere")
+        return
     hass.config_entries.async_update_entry(entry, title=msg.get("title", entry.title), options=options)
-    connection.send_result(msg["id"], {"options": options})
+    connection.send_result(msg["id"], {"options": options, "rev": revision(options, msg.get("title", entry.title))})
 
 
 @websocket_api.websocket_command(

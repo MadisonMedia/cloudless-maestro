@@ -141,7 +141,8 @@ async def test_motion_switches_on_with_the_row_and_off_after_the_time(
     await motion(hass, True)
     assert lights.pct(BAD) == 40
     assert hass.states.get(BAD).attributes["color_temp_kelvin"] == 3000
-    assert lights.calls[-1].data["transition"] == 2
+    # Switching on is quick; the default transition is for lights that follow a new time of day.
+    assert lights.calls[-1].data["transition"] == 1
     await motion(hass, False)
     # After three minutes the light dims to half as a warning.
     await move_to(hass, freezer, local(2026, 11, 9, 10, 2, 59))
@@ -587,3 +588,271 @@ def test_devices_of_0_1_0b2_become_actions() -> None:
         ("einschlafen", 0.0, "start", 0),
     }
     assert "devices" not in options["rules"][0]
+
+
+def heating_options(**extra: Any) -> dict[str, Any]:
+    """The bathroom heating 60 minutes before wake-up, which begins at 06:30 on a workday."""
+    return rule_options(
+        actions=[{"entity": "climate.bad", "tod": "aufstehen", "edge": "start", "offset": -60, "value": 22}], **extra
+    )
+
+
+def planned_log(rhythm) -> list[dict[str, Any]]:
+    return [i for i in rhythm.data["log"] if i.get("what") == "device" and i.get("planned")]
+
+
+async def test_an_action_missed_during_a_restart_follows(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    climate = async_mock_service(hass, "climate", "set_temperature")
+    freezer.move_to(local(2026, 11, 9, 5, 0))
+    await setup_rhythm(options=heating_options(), entry_id="r1")
+    await hass.config_entries.async_unload("r1")
+    await hass.async_block_till_done()
+    freezer.move_to(local(2026, 11, 9, 6, 40))
+    assert await hass.config_entries.async_setup("r1")
+    await hass.async_block_till_done()
+    assert len(climate) == 1
+    rhythm = hass.config_entries.async_get_entry("r1").runtime_data
+    assert planned_log(rhythm)[-1]["planned"].startswith("2026-11-09T05:30")
+    # Once per day: neither another evaluation nor another restart repeats it.
+    await move_to(hass, freezer, local(2026, 11, 9, 6, 50))
+    await hass.config_entries.async_unload("r1")
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_setup("r1")
+    await hass.async_block_till_done()
+    assert len(climate) == 1
+
+
+async def test_an_action_is_not_caught_up_once_its_time_of_day_is_over(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    climate = async_mock_service(hass, "climate", "set_temperature")
+    freezer.move_to(local(2026, 11, 9, 5, 0))
+    await setup_rhythm(options=heating_options(), entry_id="r1")
+    await hass.config_entries.async_unload("r1")
+    await hass.async_block_till_done()
+    freezer.move_to(local(2026, 11, 9, 7, 5))
+    assert await hass.config_entries.async_setup("r1")
+    await hass.async_block_till_done()
+    assert not climate
+
+
+async def test_an_earlier_begin_brings_a_passed_moment_forward(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    climate = async_mock_service(hass, "climate", "set_temperature")
+    freezer.move_to(local(2026, 11, 9, 5, 0))
+    rhythm = await setup_rhythm(options=heating_options())
+    await move_to(hass, freezer, local(2026, 11, 9, 5, 20))
+    assert not climate
+    # Wake-up moves to 06:00, so the heating should have started at 05:00.
+    await rhythm.async_adjust_day(None, times={"aufstehen": {"kind": "fixed", "time": "06:00"}})
+    await hass.async_block_till_done()
+    assert len(climate) == 1
+    assert planned_log(rhythm)[-1]["planned"].startswith("2026-11-09T05:00")
+    await move_to(hass, freezer, local(2026, 11, 9, 6, 1))
+    assert len(climate) == 1
+
+
+async def test_pinning_wake_up_early_starts_the_heating(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    climate = async_mock_service(hass, "climate", "set_temperature")
+    freezer.move_to(local(2026, 11, 9, 5, 0))
+    rhythm = await setup_rhythm(options=heating_options())
+    await move_to(hass, freezer, local(2026, 11, 9, 5, 10))
+    await rhythm.async_pin("aufstehen", "next_change")
+    await hass.async_block_till_done()
+    assert len(climate) == 1
+    await move_to(hass, freezer, local(2026, 11, 9, 5, 31))
+    await move_to(hass, freezer, local(2026, 11, 9, 6, 31))
+    assert len(climate) == 1
+
+
+async def test_a_later_begin_does_not_repeat_an_action(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    climate = async_mock_service(hass, "climate", "set_temperature")
+    freezer.move_to(local(2026, 11, 9, 5, 0))
+    rhythm = await setup_rhythm(options=heating_options())
+    await move_to(hass, freezer, local(2026, 11, 9, 5, 30, 1))
+    assert len(climate) == 1
+    assert not planned_log(rhythm)
+    await rhythm.async_adjust_day(None, times={"aufstehen": {"kind": "fixed", "time": "06:50"}})
+    await hass.async_block_till_done()
+    await move_to(hass, freezer, local(2026, 11, 9, 5, 50, 1))
+    assert len(climate) == 1
+    # The next day it runs again.
+    await move_to(hass, freezer, local(2026, 11, 10, 5, 30, 1))
+    assert len(climate) == 2
+
+
+async def test_a_new_action_starts_with_the_moments_to_come(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    climate = async_mock_service(hass, "climate", "set_temperature")
+    freezer.move_to(local(2026, 11, 9, 5, 40))
+    rhythm = await setup_rhythm(options=rule_options())
+    hass.config_entries.async_update_entry(rhythm.entry, options=heating_options())
+    await hass.async_block_till_done()
+    assert not climate
+    await move_to(hass, freezer, local(2026, 11, 10, 5, 30, 1))
+    assert len(climate) == 1
+
+
+async def test_an_action_at_a_begin_follows_after_a_restart(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    cover = async_mock_service(hass, "cover", "set_cover_position")
+    freezer.move_to(local(2026, 11, 9, 6, 0))
+    options = rule_options(actions=[{"entity": COVER, "tod": "aufstehen", "edge": "start", "offset": 0, "value": 100}])
+    await setup_rhythm(options=options, entry_id="r1")
+    await hass.config_entries.async_unload("r1")
+    await hass.async_block_till_done()
+    freezer.move_to(local(2026, 11, 9, 6, 40))
+    assert await hass.config_entries.async_setup("r1")
+    await hass.async_block_till_done()
+    assert len(cover) == 1
+    await move_to(hass, freezer, local(2026, 11, 9, 6, 45))
+    assert len(cover) == 1
+
+
+async def test_a_transition_of_the_row_also_switches_on(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    freezer.move_to(local(2026, 11, 9, 10))
+    options = rule_options()
+    options["rules"][0]["rows"]["morgen"]["transition"] = 8
+    await setup_rhythm(options=options)
+    await motion(hass, True)
+    assert lights.calls[-1].data["transition"] == 8
+    # Following a new time of day takes the default.
+    await move_to(hass, freezer, local(2026, 11, 9, 12, 0, 1))
+    assert lights.calls[-1].data["transition"] == 2
+
+
+async def test_a_new_action_is_stored_at_once(
+    hass: HomeAssistant, hass_storage: dict[str, Any], setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    freezer.move_to(local(2026, 11, 9, 5, 0))
+    await setup_rhythm(options=heating_options(), entry_id="r1")
+    freezer.tick(timedelta(seconds=2))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    stored = hass_storage["cloudless_maestro.r1"]["data"]["actions"]
+    assert list(stored) == ["bad|climate.bad|aufstehen|start|-60"]
+
+
+async def test_a_short_pin_is_an_occasion_of_its_own(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    cover = async_mock_service(hass, "cover", "set_cover_position")
+    switch_off = async_mock_service(hass, "homeassistant", "turn_off")
+    climate = async_mock_service(hass, "climate", "set_temperature")
+    freezer.move_to(local(2026, 11, 9, 9, 50))
+    options = rule_options(
+        actions=[
+            {"entity": COVER, "tod": "abend", "edge": "start", "offset": 0, "value": 0},
+            {"entity": "climate.wz", "tod": "abend", "edge": "start", "offset": 5, "value": 20},
+            {"entity": "switch.heizdecke", "tod": "abend", "edge": "end", "offset": 10, "value": "off"},
+        ]
+    )
+    rhythm = await setup_rhythm(options=options)
+    await move_to(hass, freezer, local(2026, 11, 9, 10, 0))
+    await rhythm.async_pin("abend", "duration", timedelta(hours=1))
+    await hass.async_block_till_done()
+    assert len(cover) == 1
+    await move_to(hass, freezer, local(2026, 11, 9, 10, 5, 1))
+    assert len(climate) == 1
+    await move_to(hass, freezer, local(2026, 11, 9, 11, 0, 1))
+    await move_to(hass, freezer, local(2026, 11, 9, 11, 10, 1))
+    assert len(switch_off) == 1
+    # The planned evening still gets everything.
+    await move_to(hass, freezer, local(2026, 11, 9, 19, 0, 1))
+    assert len(cover) == 2
+    await move_to(hass, freezer, local(2026, 11, 9, 19, 5, 1))
+    assert len(climate) == 2
+    await move_to(hass, freezer, local(2026, 11, 9, 22, 40, 1))
+    assert len(switch_off) == 2
+
+
+@pytest.mark.parametrize(
+    ("pin_at", "duration", "action", "moments"),
+    [
+        # Evening pinned an hour early for two hours: the same evening, begun earlier.
+        ((18, 0), timedelta(hours=2), {"edge": "start", "offset": 5}, [(18, 5)]),
+        # Evening pinned from 15:00 until the next change: its end is the planned end.
+        ((15, 0), None, {"edge": "end", "offset": 5}, [(22, 35)]),
+        ((15, 0), None, {"edge": "end", "offset": -30}, [(22, 0)]),
+    ],
+)
+async def test_a_pin_over_the_planned_time_of_day_runs_an_action_once(
+    hass: HomeAssistant,
+    setup_rhythm,
+    freezer: FrozenDateTimeFactory,
+    lights: FakeLights,
+    pin_at,
+    duration,
+    action,
+    moments,
+) -> None:
+    cover = async_mock_service(hass, "cover", "set_cover_position")
+    freezer.move_to(local(2026, 11, 9, pin_at[0], pin_at[1]) - timedelta(minutes=1))
+    rhythm = await setup_rhythm(options=rule_options(actions=[{"entity": COVER, "tod": "abend", "value": 0, **action}]))
+    await move_to(hass, freezer, local(2026, 11, 9, *pin_at))
+    if duration:
+        await rhythm.async_pin("abend", "duration", duration)
+    else:
+        await rhythm.async_pin("abend", "next_change")
+    await hass.async_block_till_done()
+    first = local(2026, 11, 9, *moments[0])
+    moment = local(2026, 11, 9, *pin_at)
+    while moment < local(2026, 11, 9, 23, 59):
+        moment += timedelta(minutes=5)
+        await move_to(hass, freezer, moment)
+        if moment >= first:
+            assert len(cover) == 1, moment
+        else:
+            assert not cover, moment
+
+
+async def _pin_and_restart(hass: HomeAssistant, setup_rhythm, freezer, pin_at, duration, back_at):
+    """Pin the evening, stop Home Assistant and start it again after the pin has ended."""
+    freezer.move_to(pin_at - timedelta(minutes=1))
+    options = rule_options(actions=[{"entity": COVER, "tod": "abend", "edge": "end", "offset": 5, "value": 0}])
+    rhythm = await setup_rhythm(options=options, entry_id="r1")
+    await move_to(hass, freezer, pin_at)
+    if duration:
+        await rhythm.async_pin("abend", "duration", duration)
+    else:
+        await rhythm.async_pin("abend", "next_change")
+    await hass.async_block_till_done()
+    await hass.config_entries.async_unload("r1")
+    await hass.async_block_till_done()
+    freezer.move_to(back_at)
+    assert await hass.config_entries.async_setup("r1")
+    await hass.async_block_till_done()
+
+
+async def test_a_pin_that_ended_during_a_restart_runs_its_end_action_once(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    cover = async_mock_service(hass, "cover", "set_cover_position")
+    await _pin_and_restart(hass, setup_rhythm, freezer, local(2026, 11, 9, 15, 0), None, local(2026, 11, 9, 22, 40))
+    assert len(cover) == 1
+    for minute in (45, 50, 55):
+        await move_to(hass, freezer, local(2026, 11, 9, 22, minute))
+    assert len(cover) == 1
+
+
+async def test_a_short_pin_that_ended_long_before_a_restart_runs_nothing_late(
+    hass: HomeAssistant, setup_rhythm, freezer: FrozenDateTimeFactory, lights: FakeLights
+) -> None:
+    cover = async_mock_service(hass, "cover", "set_cover_position")
+    await _pin_and_restart(
+        hass, setup_rhythm, freezer, local(2026, 11, 9, 10, 0), timedelta(hours=1), local(2026, 11, 10, 15, 0)
+    )
+    for minute in (5, 10, 30):
+        await move_to(hass, freezer, local(2026, 11, 10, 15, minute))
+    assert not cover
