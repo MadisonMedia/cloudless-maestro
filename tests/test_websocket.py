@@ -245,3 +245,42 @@ async def test_a_rhythm_can_be_created_from_imported_settings(
     await client.send_json_auto_id({"type": f"{DOMAIN}/rhythm/create", "title": "Broken", "options": {"base": {}}})
     res = await client.receive_json()
     assert not res["success"]
+
+
+async def test_a_save_from_an_old_page_does_not_overwrite_changes_made_elsewhere(
+    hass: HomeAssistant, setup_rhythm, hass_ws_client: WebSocketGenerator, freezer: FrozenDateTimeFactory
+) -> None:
+    client = await hass_ws_client(hass)
+    freezer.move_to(local(2026, 11, 9, 11, 30))
+    rhythm = await setup_rhythm(options=sample_options(rules=[{"id": "bad", "name": "Bad"}]))
+    await client.send_json_auto_id({"type": f"{DOMAIN}/rhythms"})
+    page = (await client.receive_json())["result"][0]
+    # The rule is paused with its switch while the page is open.
+    await hass.services.async_call("switch", "turn_off", {"entity_id": "switch.wohnung_rule_bad"}, blocking=True)
+    await hass.async_block_till_done()
+    assert rhythm.options["rules"][0]["active"] is False
+    options = page["options"]
+    options["times_of_day"][0]["name"] = "Wach werden"
+    await client.send_json_auto_id(
+        {"type": f"{DOMAIN}/rhythm/save", "entry_id": rhythm.entry.entry_id, "options": options, "rev": page["rev"]}
+    )
+    response = await client.receive_json()
+    assert not response["success"] and response["error"]["code"] == "changed_elsewhere"
+    assert rhythm.options["rules"][0]["active"] is False
+    # With the current revision it saves, and the answer carries the next one.
+    await client.send_json_auto_id({"type": f"{DOMAIN}/rhythms"})
+    page = (await client.receive_json())["result"][0]
+    page["options"]["times_of_day"][0]["name"] = "Wach werden"
+    await client.send_json_auto_id(
+        {
+            "type": f"{DOMAIN}/rhythm/save",
+            "entry_id": rhythm.entry.entry_id,
+            "options": page["options"],
+            "rev": page["rev"],
+        }
+    )
+    response = await client.receive_json()
+    assert response["success"]
+    await hass.async_block_till_done()
+    await client.send_json_auto_id({"type": f"{DOMAIN}/rhythms"})
+    assert (await client.receive_json())["result"][0]["rev"] == response["result"]["rev"]

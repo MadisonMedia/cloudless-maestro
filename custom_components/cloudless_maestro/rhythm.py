@@ -35,7 +35,7 @@ from .const import (
     REASON_RESUME,
     STORAGE_VERSION,
 )
-from .model import normalize_adjustment, normalize_options
+from .model import normalize_adjustment, normalize_options, revision
 from .rules import RuleEngine
 from .schedule import (
     PIN_DURATION,
@@ -44,10 +44,13 @@ from .schedule import (
     DayPlan,
     Pin,
     Plan,
+    Segment,
     State,
     Timeline,
     local_time,
     next_day_start,
+    overlay,
+    pin_end,
     segments_between,
     state_at,
 )
@@ -109,6 +112,8 @@ class Rhythm:
             "lights": {},
             "pending": {},
             "fades": [],
+            "actions": {},
+            "pin_past": None,
         }
         self.plan: Plan = self._make_plan()
         self.state: State | None = None
@@ -261,6 +266,10 @@ class Rhythm:
         state, timeline = state_at(self.plan, now, pin)
         if pin is not None and not state.pinned and pin.set_at <= now:
             # The pin has ended. The plan applies again.
+            # Worked out from the plan, so it is right after a restart too.
+            ended = pin_end(pin, timeline, self.plan)
+            ended = min(ended, now) if ended is not None else now
+            self._remember_pin(pin, ended, overlay(timeline, pin, ended))
             self.data["pin"] = None
             self.log({"kind": "pin_ended"})
             if reason == REASON_PIN:
@@ -352,6 +361,69 @@ class Rhythm:
                 return moment
         return None
 
+    def _occasion(self, seg: Segment, timeline: Timeline | None = None) -> str:
+        """Name the occasion a stretch of a time of day belongs to; it stays the same when the plan moves it.
+
+        The plan's occasions are named by their date; the base state belongs to the day it leads into. A pinned time
+        of day that overlaps or touches the planned one is that occasion, moved; otherwise it is one of its own.
+        """
+        timeline = timeline or self.timeline
+        if seg.pinned and timeline is not None:
+            for planned in timeline.planned or timeline.segments:
+                if (
+                    planned.key == seg.key
+                    and not planned.pinned
+                    and planned.start <= seg.end
+                    and planned.end >= seg.start
+                ):
+                    return self._occasion(planned)
+        base = self.options["base"]["key"]
+        belongs = seg.day if seg.day is not None and seg.key != base else seg.end.astimezone(self.tz).date()
+        if seg.pinned:
+            return f"{(seg.day or belongs).isoformat()}@{seg.start.astimezone(self.tz):%H%M}"
+        return belongs.isoformat()
+
+    def edges(self, key: str, edge: str) -> list[tuple[str, datetime, datetime]]:
+        """Return every begin or end of a time of day on the timeline, as it really happens, pins included.
+
+        Each comes with the name of its occasion and the moment until which what belongs to it may still happen: the
+        end of the time of day that begins there.
+        """
+        if self.timeline is None:
+            return []
+        merged: list[list[Segment]] = []
+        for seg in self.timeline.segments:
+            if merged and merged[-1][0].key == seg.key:
+                merged[-1].append(seg)
+            else:
+                merged.append([seg])
+        out = []
+        for index, group in enumerate(merged):
+            first, last = group[0], group[-1]
+            if first.key != key:
+                continue
+            if edge == "start":
+                if index == 0:
+                    continue  # began before the timeline
+                out.append((self._occasion(first), first.start, last.end))
+            else:
+                if index + 1 >= len(merged):
+                    continue  # ends after the timeline
+                out.append((self._occasion(last), last.end, merged[index + 1][-1].end))
+        past = self.data.get("pin_past")
+        if past and past.get("key") == key:
+            # A pin that has ended is gone from the timeline; its begin and end still count, once.
+            try:
+                name = str(past["name"])
+                moment = datetime.fromisoformat(past["start" if edge == "start" else "end"])
+                stop = datetime.fromisoformat(past["end"])
+            except (KeyError, TypeError, ValueError):
+                return out
+            if all(name != item[0] and abs((moment - item[1]).total_seconds()) > 1 for item in out):
+                until = stop if edge == "start" else self.timeline.at(stop).end
+                out.append((name, moment, until))
+        return out
+
     def choosable(self) -> list[str]:
         """Return what can be pinned now: the times of day in today's model and the base state."""
         assert self.state is not None
@@ -381,6 +453,8 @@ class Rhythm:
             end = local_time(now.date(), until, self.tz)
             if end <= now:
                 end = local_time(now.date() + timedelta(days=1), until, self.tz)
+        if self.state.pinned and self.pin is not None:
+            self._remember_pin(self.pin, now)
         pin = Pin(key, self.state.today, mode, now, end)
         self.data["pin"] = pin.as_dict()
         self.log({"kind": "pin", "to": key, "mode": mode, "until": end.isoformat() if end else None})
@@ -390,9 +464,25 @@ class Rhythm:
         """Return to the plan. Day adjustments stay."""
         if self.data.get("pin") is None:
             return
+        if self.state is not None and self.state.pinned and self.pin is not None:
+            self._remember_pin(self.pin, dt_util.now(self.tz))
         self.data["pin"] = None
         self.log({"kind": "resume"})
         self._evaluate(REASON_RESUME)
+
+    def _remember_pin(self, pin: Pin, end: datetime, timeline: Timeline | None = None) -> None:
+        """Keep the last pin that ended, so actions at its end or after it still know when it was.
+
+        The timeline is the one with the pin laid over the plan; without one the current timeline is used.
+        """
+        timeline = timeline or self.timeline
+        start = max(pin.set_at, timeline.start) if timeline is not None else pin.set_at
+        self.data["pin_past"] = {
+            "key": pin.key,
+            "name": self._occasion(Segment(pin.key, start, end, pin.day, pinned=True), timeline),
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+        }
 
     def resolve_day(self, day: date | None) -> date:
         """Return the date an action means, today if none is given."""
@@ -531,6 +621,7 @@ class Rhythm:
             "entry_id": self.entry.entry_id,
             "title": self.title,
             "device_id": self.device_id,
+            "rev": revision(self.options, self.title),
             "now": now.isoformat(),
             "base": self.options["base"],
             "times_of_day": self.options["times_of_day"],

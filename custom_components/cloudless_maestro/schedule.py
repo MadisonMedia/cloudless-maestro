@@ -238,6 +238,7 @@ class Segment:
     start: datetime
     end: datetime
     day: date | None
+    pinned: bool = False
 
 
 @dataclass(frozen=True)
@@ -258,6 +259,7 @@ class Timeline:
     segments: tuple[Segment, ...]
     windows: tuple[Window, ...]
     base: str
+    planned: tuple[Segment, ...] = ()  # the plan's segments when a pin lies over them
 
     def index_at(self, moment: datetime) -> int:
         """Return the index of the segment containing a moment."""
@@ -447,8 +449,15 @@ def overlay(timeline: Timeline, pin: Pin, end: datetime | None) -> Timeline:
         return timeline
     before = [Segment(s.key, s.start, min(s.end, pin.set_at), s.day) for s in timeline.segments if s.start < pin.set_at]
     after = [Segment(s.key, max(s.start, stop), s.end, s.day) for s in timeline.segments if s.end > stop]
-    pinned = Segment(pin.key, max(pin.set_at, timeline.start), stop, pin.day)
-    return Timeline(timeline.start, timeline.end, (*before, pinned, *after), timeline.windows, timeline.base)
+    pinned = Segment(pin.key, max(pin.set_at, timeline.start), stop, pin.day, pinned=True)
+    return Timeline(
+        timeline.start,
+        timeline.end,
+        (*before, pinned, *after),
+        timeline.windows,
+        timeline.base,
+        planned=timeline.segments,
+    )
 
 
 def state_at(plan: Plan, moment: datetime, pin: Pin | None = None) -> tuple[State, Timeline]:
